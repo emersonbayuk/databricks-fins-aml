@@ -30,50 +30,6 @@ Run notebooks in this sequence — each depends on tables created by previous st
 
 ![AML ERD](docs/erd.svg)
 
-```
-                                    CORE ENTITIES
-┌─────────────────┐       ┌──────────────────┐       ┌─────────────────┐
-│   CUSTOMERS     │──1:N─▶│    ACCOUNTS      │──1:N─▶│  TRANSACTIONS   │
-│                 │       │                  │       │                 │
-│ • customer_id   │       │ • account_id     │       │ • txn_id        │
-│ • risk_rating   │       │ • account_type   │       │ • amount        │
-│ • pep_flag      │       │ • status         │       │ • counterparty  │
-└────────┬────────┘       └──────────────────┘       └─────────────────┘
-         │
-         │ 1:N
-         ▼
-┌─────────────────┐       ┌──────────────────┐       ┌─────────────────┐
-│     ALERTS      │──1:1─▶│      CASES       │──1:N─▶│   SAR_FILINGS   │
-│                 │       │                  │       │                 │
-│ • alert_id      │       │ • case_id        │       │ • sar_id        │
-│ • scenario_type │       │ • case_status    │       │ • fincen_dcn    │
-│ • priority      │       │ • disposition    │       │ • narrative     │
-└─────────────────┘       └────────┬─────────┘       └─────────────────┘
-                                   │ 1:N
-                                   ▼
-                          ┌──────────────────┐
-                          │  CASE_AUDIT_LOG  │
-                          └──────────────────┘
-
-                               SCREENING
-┌─────────────────┐       ┌──────────────────┐
-│   WATCHLISTS    │──1:N─▶│  WATCHLIST_HITS  │◀─── CUSTOMERS
-│                 │       │                  │
-│ • list_type     │       │ • match_score    │
-│ • entity_name   │       │ • status         │
-└─────────────────┘       └──────────────────┘
-
-                              GRAPH MODEL
-┌─────────────────────┐              ┌─────────────────────────┐
-│    GRAPH_NODES      │◀────────────▶│      GRAPH_EDGES        │
-│                     │              │                         │
-│ • node_id           │              │ • source_node_id        │
-│ • node_type         │              │ • target_node_id        │
-│ • risk_score        │              │ • edge_type             │
-│ • properties (JSON) │              │ • weight                │
-└─────────────────────┘              └─────────────────────────┘
-```
-
 ## Detection Scenarios
 
 Synthetic data includes pre-seeded patterns for 9 AML scenarios:
