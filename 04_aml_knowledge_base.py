@@ -1,18 +1,36 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # AML Knowledge Base - Unstructured Document Generation
+# MAGIC # AML Knowledge Base - Document Generation & Regulatory References
 # MAGIC
-# MAGIC This notebook generates synthetic unstructured documents to populate the Knowledge Assistant:
+# MAGIC This notebook builds the Knowledge Assistant document corpus with two types of content:
+# MAGIC
+# MAGIC **1. Regulatory & Policy Documents (Downloaded Automatically)**
+# MAGIC - FFIEC BSA/AML Examination Manual sections
+# MAGIC - FinCEN SAR/CTR filing guidance
+# MAGIC - OFAC compliance frameworks
+# MAGIC - Sample institution AML policies
+# MAGIC
+# MAGIC **2. Customer-Specific Documents (Generated Synthetically)**
 # MAGIC - SAR Narratives (linked to customers with filed SARs)
 # MAGIC - Investigation Case Notes
 # MAGIC - EDD Memoranda
 # MAGIC - Adverse Media Screening Results
 # MAGIC - Customer Correspondence Logs
 # MAGIC
-# MAGIC These documents provide historical context that enables the AI agent to answer questions like:
-# MAGIC - "What previous filings do we have on this customer?"
-# MAGIC - "Are there any previous notes on this entity?"
-# MAGIC - "What gaps exist in our documentation for this customer?"
+# MAGIC **Folder Structure:**
+# MAGIC ```
+# MAGIC knowledge_base/
+# MAGIC ├── policies_and_regulations/
+# MAGIC │   ├── ffiec/           # BSA/AML exam manual, red flags, CIP
+# MAGIC │   ├── fincen/          # SAR, CTR, CDD guidance
+# MAGIC │   ├── ofac/            # Sanctions compliance framework
+# MAGIC │   └── internal/        # Institution AML policies
+# MAGIC ├── sar_narratives/      # Customer SAR filings
+# MAGIC ├── case_notes/          # Investigation notes
+# MAGIC ├── edd_memos/           # Enhanced due diligence
+# MAGIC ├── adverse_media/       # Media screening results
+# MAGIC └── correspondence/      # Customer interaction logs
+# MAGIC ```
 
 # COMMAND ----------
 
@@ -27,6 +45,176 @@ VOLUME_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/knowledge_base"
 
 # Create volume for knowledge base documents
 spark.sql(f"CREATE VOLUME IF NOT EXISTS {CATALOG}.{SCHEMA}.knowledge_base")
+
+print(f"Knowledge base volume: {VOLUME_PATH}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Part 1: Download Regulatory & Policy Documents
+
+# COMMAND ----------
+
+import requests
+import os
+
+# =============================================================================
+# REGULATORY DOCUMENTS TO DOWNLOAD
+# =============================================================================
+
+REGULATORY_DOCS = {
+    # FFIEC / Federal Regulator Guidance
+    "ffiec": [
+        {
+            "name": "appendix_f_red_flags.pdf",
+            "url": "https://bsaaml.ffiec.gov/docs/manual/10_Appendices/07.pdf",
+            "description": "FFIEC BSA/AML Red Flags for Money Laundering"
+        },
+        {
+            "name": "ffiec_cip_manual.pdf",
+            "url": "https://www.fdic.gov/news/financial-institution-letters/2021/fil21012b.pdf",
+            "description": "FFIEC Customer Identification Program Manual"
+        }
+    ],
+    
+    # FinCEN Guidance
+    "fincen": [
+        {
+            "name": "sar_narrative_guidance.pdf",
+            "url": "https://www.irs.gov/pub/irs-tege/itg_sarc_prep.pdf",
+            "description": "FinCEN SAR Narrative Guidance"
+        },
+        {
+            "name": "ctr_reference_guide.pdf",
+            "url": "https://www.fincen.gov/system/files/shared/CTRPamphlet.pdf",
+            "description": "CTR Reference Guide"
+        },
+        {
+            "name": "cdd_rule_faqs.pdf",
+            "url": "https://www.fincen.gov/system/files/2018-04/FinCEN_Guidance_CDD_FAQ_FINAL_508_2.pdf",
+            "description": "Customer Due Diligence Rule FAQs"
+        },
+        {
+            "name": "cdd_beneficial_ownership_faqs.pdf",
+            "url": "https://www.fincen.gov/system/files/2016-09/FAQs_for_CDD_Final_Rule_(7_15_16).pdf",
+            "description": "Beneficial Ownership FAQs"
+        }
+    ],
+    
+    # OFAC / Sanctions
+    "ofac": [
+        {
+            "name": "compliance_framework.pdf",
+            "url": "https://ofac.treasury.gov/media/16331/download?inline=",
+            "description": "OFAC Compliance Framework"
+        },
+        {
+            "name": "instant_payments_guidance.pdf",
+            "url": "https://ofac.treasury.gov/system/files/126/instant_payment_systems_compliance_guidance_brochure.pdf",
+            "description": "OFAC Instant Payments Guidance"
+        }
+    ],
+    
+    # Sample Institution Policies
+    "internal": [
+        {
+            "name": "vls_finance_aml_policy.pdf",
+            "url": "https://www.vlsfinance.com/wp-content/uploads/2022/01/Anti-Money-Laundering-Policy.pdf",
+            "description": "VLS Finance AML Policy"
+        },
+        {
+            "name": "jab_aml_policy.pdf",
+            "url": "https://www.jabholco.com/img/pdf/JAB_AML_Policy.pdf",
+            "description": "JAB Holding AML Policy with Red Flags"
+        },
+        {
+            "name": "hrw_aml_policy.pdf",
+            "url": "https://www.hrw.org/sites/default/files/news_attachments/hrw-anti-money-laundering-policy-december2016.pdf",
+            "description": "HRW AML Policy"
+        },
+        {
+            "name": "multichoice_aml_policy.pdf",
+            "url": "https://investors.multichoice.com/pdf/policies-and-charters/2024/mcg-anti-money-laundering-policy.pdf",
+            "description": "MultiChoice AML Policy 2024"
+        }
+    ]
+}
+
+# COMMAND ----------
+
+def download_regulatory_docs():
+    """Download regulatory documents from public sources."""
+    
+    # Use direct filesystem path for Volumes (not dbfs:/)
+    base_path = f"{VOLUME_PATH}/policies_and_regulations"
+    
+    # Create directory structure using os.makedirs (works with Volume paths)
+    for category in ["ffiec", "fincen", "ofac", "internal"]:
+        dir_path = f"{base_path}/{category}"
+        os.makedirs(dir_path, exist_ok=True)
+        print(f"Created directory: {dir_path}")
+    
+    download_results = []
+    
+    for category, docs in REGULATORY_DOCS.items():
+        print(f"\n{'='*60}")
+        print(f"Downloading {category.upper()} documents...")
+        print(f"{'='*60}")
+        
+        for doc in docs:
+            try:
+                print(f"\n  Downloading: {doc['name']}")
+                
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                response = requests.get(doc["url"], timeout=60, allow_redirects=True, headers=headers)
+                response.raise_for_status()
+                
+                # Write directly to Volume path (no dbutils.fs.cp needed)
+                filepath = f"{base_path}/{category}/{doc['name']}"
+                with open(filepath, 'wb') as f:
+                    f.write(response.content)
+                
+                size_kb = len(response.content) / 1024
+                download_results.append({
+                    "category": category,
+                    "file": doc["name"],
+                    "description": doc["description"],
+                    "status": "Success",
+                    "size_kb": round(size_kb, 1)
+                })
+                print(f"  Saved ({size_kb:.1f} KB)")
+                
+            except Exception as e:
+                download_results.append({
+                    "category": category,
+                    "file": doc["name"],
+                    "description": doc["description"],
+                    "status": f"Failed: {str(e)[:40]}",
+                    "size_kb": 0
+                })
+                print(f"  Failed: {str(e)[:50]}")
+    
+    return download_results
+
+print("=" * 70)
+print("DOWNLOADING REGULATORY & POLICY DOCUMENTS")
+print("=" * 70)
+results = download_regulatory_docs()
+
+# COMMAND ----------
+
+# Display results
+import pandas as pd
+results_df = pd.DataFrame(results)
+display(results_df)
+
+success_count = len([r for r in results if r["status"] == "Success"])
+print(f"\nTotal: {success_count}/{len(results)} documents downloaded")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Part 2: Generate Synthetic Customer Documents
 
 # COMMAND ----------
 
@@ -45,15 +233,17 @@ sars_df = spark.table(f"{CATALOG}.{SCHEMA}.sar_filings").toPandas()
 cases_df = spark.table(f"{CATALOG}.{SCHEMA}.cases").toPandas()
 alerts_df = spark.table(f"{CATALOG}.{SCHEMA}.alerts").toPandas()
 
+print(f"Loaded: {len(customers_df)} customers, {len(sars_df)} SARs, {len(cases_df)} cases")
+
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 1. Generate SAR Narratives
+# MAGIC ### 2.1 Generate SAR Narratives
 
 # COMMAND ----------
 
 def generate_sar_narrative(customer_info, sar_info, transactions):
-    """Generate a realistic SAR narrative for a customer."""
+    """Generate a realistic SAR narrative."""
     
     customer_id = customer_info["customer_id"]
     customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip()
@@ -62,15 +252,13 @@ def generate_sar_narrative(customer_info, sar_info, transactions):
     
     activity_type = sar_info["activity_type"]
     amount_involved = sar_info["amount_involved"]
-    activity_start = sar_info["activity_start"]
-    activity_end = sar_info["activity_end"]
     
-    # Build transaction summary
     txn_summary = []
     for txn in transactions[:10]:
         txn_summary.append(f"- {str(txn['transaction_date'])[:10]}: {txn['transaction_type'].replace('_', ' ').title()} of ${txn['amount']:,.2f}")
     
     narrative = f"""SAR NARRATIVE
+================================================================================
 
 SAR ID: {sar_info['sar_id']}
 FinCEN DCN: {sar_info['fincen_dcn']}
@@ -80,652 +268,366 @@ Filing Type: {sar_info['filing_type'].upper()}
 SUBJECT INFORMATION:
 Name: {customer_name}
 Customer ID: {customer_id}
-Date of Birth: {customer_info.get('date_of_birth', 'N/A')}
-Address: {customer_info.get('address_line1', '')}, {customer_info.get('address_city', '')}, {customer_info.get('address_state', '')} {customer_info.get('address_zip', '')}
+Address: {customer_info.get('address_city', '')}, {customer_info.get('address_state', '')}
 Occupation: {customer_info.get('occupation', 'N/A')}
-Relationship Since: {customer_info.get('onboarding_date', 'N/A')}
 
 ACTIVITY SUMMARY:
 Activity Type: {activity_type}
-Activity Period: {activity_start} to {activity_end}
-Total Amount Involved: ${amount_involved:,.2f}
+Activity Period: {sar_info['activity_start']} to {sar_info['activity_end']}
+Total Amount: ${amount_involved:,.2f}
 
-NARRATIVE:
+================================================================================
+NARRATIVE
+================================================================================
 
-ABC National Bank is filing this Suspicious Activity Report to report suspected {activity_type.lower()} activity conducted by {customer_name}, Customer ID {customer_id}.
+ABC National Bank files this SAR for suspected {activity_type.lower()} by {customer_name}.
 
-{customer_name} has maintained a banking relationship with the institution since {customer_info.get('onboarding_date', 'unknown')}. The customer's stated occupation is "{customer_info.get('occupation', 'not specified')}" with an annual income of ${customer_info.get('annual_income', 0):,.0f}.
-
-During the activity period from {activity_start} to {activity_end}, the following suspicious transactions were identified:
-
+Suspicious transactions identified:
 {chr(10).join(txn_summary)}
 
-Total suspicious activity: ${amount_involved:,.2f}
-
 """
 
-    # Add scenario-specific content
     if "structuring" in activity_type.lower():
-        narrative += f"""
-The pattern of deposits is consistent with structuring designed to evade Currency Transaction Report (CTR) filing requirements. The customer made multiple cash deposits in amounts just below the $10,000 reporting threshold, often at different branch locations within short time periods.
-
-When questioned by branch staff, {customer_name} stated the cash was from "{random.choice(['business sales', 'personal savings', 'antique sales', 'car sales'])}." The customer was unable or unwilling to provide supporting documentation when requested.
-
-The volume of cash activity is inconsistent with the customer's stated occupation and income profile.
+        narrative += """
+ANALYSIS: Pattern consistent with structuring per FFIEC BSA/AML Appendix F:
+- Multiple deposits just under $10,000 CTR threshold
+- Deposits at multiple branches
+- Activity inconsistent with stated income
 """
-    
     elif "rapid" in activity_type.lower():
-        narrative += f"""
-The transaction pattern indicates rapid movement of funds with minimal retention. Large incoming wire transfers were received and substantially equivalent amounts were wired out within 24-48 hours, leaving minimal balance in the account.
-
-This pass-through activity suggests the account may be used as a conduit for layering funds. The beneficiaries of outgoing wires include entities in multiple jurisdictions with no apparent business connection to the customer's stated activities.
+        narrative += """
+ANALYSIS: Rapid fund movement consistent with layering:
+- Funds retained less than 48 hours
+- Wire recipients in multiple jurisdictions
+- No apparent business purpose
+"""
+    elif "geo" in activity_type.lower():
+        narrative += """
+ANALYSIS: High-risk geography transactions per OFAC guidance:
+- Transfers to FATF-deficient jurisdictions
+- Customer unable to explain business purpose
+- OFAC screening flagged potential concerns
 """
 
-    elif "geo" in activity_type.lower() or "country" in activity_type.lower():
-        narrative += f"""
-The customer initiated wire transfers to jurisdictions identified as high-risk for money laundering and sanctions evasion. The destination countries include those subject to OFAC sanctions programs or identified by FATF as having strategic AML/CFT deficiencies.
-
-The customer's stated business activities do not appear to justify transactions with these jurisdictions. When asked about the business purpose, the customer provided vague explanations inconsistent with legitimate trade or investment activities.
-"""
-    
-    elif "third" in activity_type.lower() or "party" in activity_type.lower():
-        narrative += f"""
-Multiple cash deposits were made to the customer's account by third parties who are not authorized signers or known associates. The third-party depositors provided limited identification and stated they were "helping a friend."
-
-This pattern raises concerns about potential nominee or funnel account activity. The account holder has been unable to provide a satisfactory explanation for why unrelated individuals are depositing cash into the account.
-"""
-    else:
-        narrative += f"""
-The activity pattern is inconsistent with the customer's known profile and stated business purpose. The transaction volumes and patterns observed during the activity period represent a significant departure from historical account behavior.
-
-Despite requests, the customer has been unable to provide adequate documentation or explanation for the activity.
-"""
-
-    # Standard closing
     narrative += f"""
+================================================================================
+ACTIONS TAKEN
+================================================================================
+- Alert escalated to BSA/AML team
+- Enhanced due diligence conducted
+- Account placed under monitoring
 
-ACTIONS TAKEN:
-- Transaction monitoring alert escalated to BSA/AML team
-- Enhanced due diligence review conducted
-- Customer interview attempted via Relationship Manager
-- Account placed under enhanced monitoring
-
-RECOMMENDATION:
-Based on the investigation findings, this SAR is being filed due to activity consistent with {activity_type.lower()}. The pattern of transactions, combined with the customer's inability to provide adequate documentation or explanation, warrants reporting to FinCEN.
-
-{random.choice(['Enhanced monitoring will continue.', 'Account restrictions have been implemented.', 'Account is under review for potential closure.'])}
-
-{random.choice(['No law enforcement contact at this time.', 'Information shared with local law enforcement per their request.'])}
-
-All supporting documentation maintained at: Compliance Department, Investigation File #{sar_info['case_id']}
-
-Prepared by: {random.choice(['Sarah Chen', 'Michael Rodriguez', 'Emily Thompson', 'David Park'])}, AML Analyst
-Reviewed by: {random.choice(['James Wong', 'Lisa Martinez', 'Robert Chen'])}, BSA Officer
+Prepared by: {random.choice(['Sarah Chen', 'Michael Rodriguez', 'Emily Thompson'])}, AML Analyst
+Reviewed by: {random.choice(['James Wong', 'Lisa Martinez'])}, BSA Officer
 """
     
     return narrative
 
-# COMMAND ----------
-
 # Generate SAR narratives
 sar_dir = f"{VOLUME_PATH}/sar_narratives"
-dbutils.fs.mkdirs(sar_dir)
+os.makedirs(sar_dir, exist_ok=True)
 
 sar_count = 0
 for _, sar in sars_df.iterrows():
-    customer_id = sar["customer_id"]
-    customer = customers_df[customers_df["customer_id"] == customer_id]
-    
+    customer = customers_df[customers_df["customer_id"] == sar["customer_id"]]
     if customer.empty:
         continue
     
     customer = customer.iloc[0].to_dict()
-    cust_txns = transactions_df[transactions_df["customer_id"] == customer_id].to_dict('records')
+    cust_txns = transactions_df[transactions_df["customer_id"] == sar["customer_id"]].to_dict('records')
     
     narrative = generate_sar_narrative(customer, sar.to_dict(), cust_txns)
+    filename = f"SAR_{sar['fincen_dcn']}_customer_{sar['customer_id']:04d}.txt"
     
-    filename = f"SAR_{sar['fincen_dcn']}_customer_{customer_id:04d}.txt"
-    filepath = f"{sar_dir}/{filename}"
-    
-    dbutils.fs.put(filepath, narrative, overwrite=True)
+    with open(f"{sar_dir}/{filename}", 'w') as f:
+        f.write(narrative)
     sar_count += 1
 
-print(f"Generated {sar_count} SAR narrative documents")
+print(f"Generated {sar_count} SAR narratives")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 2. Generate Investigation Case Notes
+# MAGIC ### 2.2 Generate Case Notes
 
 # COMMAND ----------
 
-def generate_case_notes(case_info, customer_info, transactions):
+def generate_case_notes(case_info, customer_info, alert_info):
     """Generate investigation case notes."""
     
-    customer_id = customer_info["customer_id"]
-    customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip()
-    if not customer_name:
-        customer_name = customer_info.get("business_name", "Unknown Entity")
-    
-    analyst = case_info.get("assigned_analyst", "Analyst")
-    supervisor = case_info.get("supervisor", "Supervisor")
-    open_date = datetime.fromisoformat(str(case_info["open_date"])[:19])
+    customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip() or "Unknown"
     
     notes = f"""INVESTIGATION CASE NOTES
+================================================================================
 
-Case ID: CASE-{case_info['case_id']:06d}
-Customer: {customer_name} (ID: {customer_id})
-Alert Scenario: {case_info['case_type'].upper()}-001
-Date Opened: {open_date.strftime('%B %d, %Y')}
-Assigned Analyst: {analyst}
-Supervisor: {supervisor}
+Case ID: {case_info['case_id']}
+Alert ID: {alert_info.get('alert_id', 'N/A')}
+Customer: {customer_name} (ID: {customer_info['customer_id']})
+Scenario: {alert_info.get('scenario_name', 'Unknown')}
 Priority: {case_info['priority'].upper()}
 Status: {case_info['case_status'].replace('_', ' ').title()}
 
-================================================================================
-
---- {open_date.strftime('%B %d, %Y')} - Initial Alert Review ({analyst}) ---
-
-Alert triggered for {case_info['case_type'].replace('_', ' ')} pattern. Customer flagged by automated detection system.
-
-Customer Profile Review:
-- Customer since: {customer_info.get('onboarding_date', 'N/A')}
-- Risk Rating: {customer_info.get('risk_rating', 'N/A').upper()}
-- KYC Status: {customer_info.get('kyc_status', 'N/A').title()}
-- Occupation: {customer_info.get('occupation', 'N/A')}
-- Annual Income: ${customer_info.get('annual_income', 0):,.0f}
-
-Initial Assessment: {random.choice(['HIGH RISK - Pattern consistent with known ML typologies', 'MEDIUM RISK - Unusual activity requires further review', 'ELEVATED RISK - Continuing activity after prior alerts'])}
-
-Action Items:
-1. Pull full transaction history (90 days)
-2. Review prior alerts and SARs
-3. Request updated KYC from Relationship Manager
-
-"""
-    
-    # Day 2 notes
-    day2 = open_date + timedelta(days=1)
-    num_txns = len(transactions)
-    total_amount = sum(t.get('amount', 0) for t in transactions[:20])
-    
-    notes += f"""--- {day2.strftime('%B %d, %Y')} - Transaction Analysis ({analyst}) ---
-
-Completed 90-day transaction history review. Key findings:
-
-Transaction Summary:
-- Total transactions reviewed: {num_txns}
-- Total volume: ${total_amount:,.2f}
-- Cash deposits: {sum(1 for t in transactions if t.get('transaction_type') == 'cash_deposit')}
-- Wire transfers: {sum(1 for t in transactions if 'wire' in str(t.get('transaction_type', '')))}
-
-Red Flags Identified:
-- Activity inconsistent with customer profile
-- Unable to verify stated source of funds
-- Unusual transaction patterns detected
-- Documentation gaps in customer file
-
-Documentation: Transaction logs saved to case file (Exhibit A)
-
-"""
-    
-    # Day 3 notes
-    day3 = open_date + timedelta(days=2)
-    notes += f"""--- {day3.strftime('%B %d, %Y')} - KYC/CDD Review ({analyst}) ---
-
-Relationship Manager provided customer update:
-- Customer visited branch on {(day3 - timedelta(days=1)).strftime('%B %d, %Y')}
-- Customer stated {random.choice(['"business has expanded"', '"funds from legitimate sources"', '"helping family members"', '"normal business operations"'])}
-- {random.choice(['Customer declined to provide additional documentation', 'Customer provided incomplete business records', 'Customer unable to verify source of funds'])}
-
-KYC File Review:
-- Last KYC refresh: {customer_info.get('kyc_date', 'N/A')}
-- Source of wealth documentation: {random.choice(['On file - dated', 'Missing', 'Incomplete', 'Requires update'])}
-- Business verification: {random.choice(['Not verified', 'Partially verified', 'Unable to verify online presence'])}
-
-"""
-    
-    # Escalation notes
-    day4 = open_date + timedelta(days=3)
-    notes += f"""--- {day4.strftime('%B %d, %Y')} - Supervisor Escalation ({analyst}) ---
-
-Escalating to BSA Officer {supervisor} for SAR filing recommendation.
-
-Evidence Package Compiled:
-- Transaction logs (Exhibit A)
-- Prior alert history (Exhibit B)
-- KYC documentation review (Exhibit C)
-- Customer interview notes from RM (Exhibit D)
-
-Recommendation: {random.choice(['File SAR - activity consistent with ML indicators', 'File SAR - continuing suspicious activity', 'Enhanced monitoring - insufficient evidence for SAR'])}
-
-"""
-    
-    # Supervisor review if closed
-    if case_info['case_status'] in ['sar_filed', 'closed_no_action']:
-        day5 = open_date + timedelta(days=5)
-        notes += f"""--- {day5.strftime('%B %d, %Y')} - BSA Officer Review ({supervisor}) ---
-
-Case reviewed. {case_info.get('disposition', 'Pending determination')}.
-
-Rationale: {case_info.get('disposition_reason', 'See case documentation.')}
-
-Account Action: {case_info.get('account_action', 'None').replace('_', ' ').title()}
-
-Case Status: {case_info['case_status'].replace('_', ' ').upper()}
+Assigned: {case_info['assigned_analyst']}
+Supervisor: {case_info['supervisor']}
+Opened: {case_info['open_date']}
 
 ================================================================================
-END OF CASE NOTES
+TIMELINE
 ================================================================================
+
+[{case_info['open_date']}] CASE OPENED
+- Alert score: {alert_info.get('alert_score', 'N/A')}
+- Flagged amount: ${alert_info.get('total_amount', 0):,.2f}
+
+[+2 hours] INITIAL REVIEW
+- Risk rating: {customer_info.get('risk_rating', 'N/A').upper()}
+- KYC status: {customer_info.get('kyc_status', 'N/A')}
+- PEP: {'Yes' if customer_info.get('pep_flag') else 'No'}
+
+================================================================================
+AI ASSISTANT QUERIES
+================================================================================
+
+Query: "Red flags for {alert_info.get('scenario_name', 'this scenario')}?"
+- Agent: Knowledge Assistant
+- Source: FFIEC Appendix F, JAB AML Policy
+
+Query: "Prior SARs for customer {customer_info['customer_id']}?"
+- Agent: Genie
+- Result: {random.choice(['None', '1 prior SAR', 'Multiple alerts'])}
+
+================================================================================
+STATUS
+================================================================================
+
+Disposition: {case_info.get('disposition', 'Pending')}
+SAR Required: {'Yes' if case_info.get('sar_required') else 'TBD'}
+
+Updated: {datetime.now().strftime('%Y-%m-%d')}
 """
-    
     return notes
 
-# COMMAND ----------
-
 # Generate case notes
-case_notes_dir = f"{VOLUME_PATH}/case_notes"
-dbutils.fs.mkdirs(case_notes_dir)
+case_dir = f"{VOLUME_PATH}/case_notes"
+os.makedirs(case_dir, exist_ok=True)
 
-notes_count = 0
+case_count = 0
 for _, case in cases_df.iterrows():
-    customer_id = case["customer_id"]
-    customer = customers_df[customers_df["customer_id"] == customer_id]
-    
+    customer = customers_df[customers_df["customer_id"] == case["customer_id"]]
+    alert = alerts_df[alerts_df["alert_id"] == case["alert_id"]]
     if customer.empty:
         continue
-        
-    customer = customer.iloc[0].to_dict()
-    cust_txns = transactions_df[transactions_df["customer_id"] == customer_id].to_dict('records')
     
-    notes = generate_case_notes(case.to_dict(), customer, cust_txns)
+    notes = generate_case_notes(case.to_dict(), customer.iloc[0].to_dict(), 
+                                alert.iloc[0].to_dict() if not alert.empty else {})
+    filename = f"case_{case['case_id']:04d}_customer_{case['customer_id']:04d}.txt"
     
-    filename = f"CASE_{case['case_id']:06d}_customer_{customer_id:04d}.txt"
-    filepath = f"{case_notes_dir}/{filename}"
-    
-    dbutils.fs.put(filepath, notes, overwrite=True)
-    notes_count += 1
+    with open(f"{case_dir}/{filename}", 'w') as f:
+        f.write(notes)
+    case_count += 1
 
-print(f"Generated {notes_count} case note documents")
+print(f"Generated {case_count} case notes")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. Generate EDD Memoranda
+# MAGIC ### 2.3 Generate EDD Memoranda
 
 # COMMAND ----------
 
-def generate_edd_memo(customer_info):
-    """Generate Enhanced Due Diligence memorandum for high-risk customers."""
+def generate_edd_memo(customer_info, transactions):
+    """Generate EDD memorandum."""
     
-    customer_id = customer_info["customer_id"]
-    customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip()
-    if not customer_name:
-        customer_name = customer_info.get("business_name", "Unknown Entity")
-    
-    review_date = fake.date_between(start_date="-6m", end_date="today")
+    customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip() or "Unknown"
+    review_date = fake.date_between(start_date="-90d", end_date="today")
     
     memo = f"""ENHANCED DUE DILIGENCE MEMORANDUM
+================================================================================
 
-Date: {review_date.strftime('%B %d, %Y')}
-Customer: {customer_name}
-Customer ID: {customer_id}
+Customer: {customer_name} (ID: {customer_info['customer_id']})
+Type: {customer_info.get('customer_type', 'Individual').title()}
 Risk Rating: {customer_info.get('risk_rating', 'N/A').upper()}
-Prepared By: {random.choice(['Maria Garcia', 'John Smith', 'Amanda Lee'])}, KYC Analyst
+Review Date: {review_date}
 
 ================================================================================
-
-PURPOSE:
-Enhanced due diligence review triggered by:
-- {customer_info.get('risk_rating', 'elevated').title()} risk customer classification
-- {'Politically Exposed Person (PEP) status' if customer_info.get('pep_flag') else 'Periodic EDD refresh requirement'}
-- Elevated transaction activity
-
+SOURCE OF FUNDS
 ================================================================================
 
-CUSTOMER PROFILE:
-
-Name: {customer_name}
-Customer Type: {customer_info.get('customer_type', 'N/A').title()}
-Date of Birth: {customer_info.get('date_of_birth', 'N/A')}
-Address: {customer_info.get('address_line1', '')}, {customer_info.get('address_city', '')}, {customer_info.get('address_state', '')} {customer_info.get('address_zip', '')}
-Country: {customer_info.get('address_country', 'US')}
 Occupation: {customer_info.get('occupation', 'N/A')}
-Employer: {customer_info.get('employer', 'N/A')}
 Annual Income: ${customer_info.get('annual_income', 0):,.0f}
-Relationship Since: {customer_info.get('onboarding_date', 'N/A')}
-PEP Status: {'Yes - ' + str(customer_info.get('pep_relationship', 'Direct')) if customer_info.get('pep_flag') else 'No'}
+Verification: {random.choice(['Verified', 'Pending', 'Documented'])}
 
 ================================================================================
-
-SOURCE OF FUNDS/WEALTH:
-
-Customer states source of funds as: "{customer_info.get('source_of_wealth', 'Not documented')}"
-
-Verification Status: {random.choice(['Verified via tax returns', 'Partially verified', 'Unable to fully verify', 'Documentation pending'])}
-
-Supporting Documentation on File:
-- {random.choice(['Tax returns (2 years)', 'Business financials', 'Employment verification', 'Investment statements'])}
-- {random.choice(['Bank statements', 'Property records', 'Business registration', 'None'])}
-
+TRANSACTION ANALYSIS (90 DAYS)
 ================================================================================
 
-TRANSACTION ACTIVITY REVIEW:
-
-Review Period: Last 12 months
-Average Monthly Volume: ${random.randint(5000, 500000):,}
-Transaction Types: {random.choice(['Primarily wire transfers', 'Mix of cash and electronic', 'Heavy cash activity', 'Standard banking activity'])}
-
-Notable Patterns:
-- {random.choice(['Activity consistent with stated business', 'Volume exceeds stated income', 'International transfers noted', 'No unusual patterns observed'])}
+Total Volume: ${sum(t.get('amount', 0) for t in transactions):,.2f}
+Transaction Count: {len(transactions)}
 
 ================================================================================
-
-ADVERSE MEDIA / NEGATIVE NEWS:
-
-Search Conducted: {review_date.strftime('%B %d, %Y')}
-Search Sources: LexisNexis, Google News, Public Records
-
-Results: {random.choice(['No adverse media identified', 'Minor references found - not material', 'Potential match requiring further review', 'Clear - no negative information'])}
-
+SCREENING
 ================================================================================
 
-RECOMMENDATION:
-
-Based on this EDD review:
-- Risk Rating: {random.choice(['Maintain current rating', 'Upgrade to HIGH', 'Downgrade to MEDIUM', 'Maintain HIGH rating'])}
-- Monitoring: {random.choice(['Standard monitoring', 'Enhanced monitoring recommended', 'Daily transaction review', 'Quarterly EDD refresh'])}
-- Account Action: {random.choice(['None required', 'Request updated documentation', 'Schedule customer interview', 'Escalate to BSA Officer'])}
-
-Next Review Due: {(review_date + timedelta(days=random.choice([90, 180, 365]))).strftime('%B %d, %Y')}
+OFAC: {random.choice(['Clear', 'Clear', 'Reviewed - Clear'])}
+PEP: {'Match - Documented' if customer_info.get('pep_flag') else 'Clear'}
+Adverse Media: {random.choice(['Clear', 'Clear', 'Minor - Non-material'])}
 
 ================================================================================
+RECOMMENDATION
+================================================================================
 
-APPROVAL:
+{random.choice([
+    'MAINTAIN current risk rating. No action required.',
+    'UPGRADE to HIGH risk. Enhanced monitoring recommended.',
+    'REQUEST additional documentation within 30 days.'
+])}
 
-Prepared By: {random.choice(['Maria Garcia', 'John Smith', 'Amanda Lee'])}, KYC Analyst
-Reviewed By: {random.choice(['James Wong', 'Lisa Martinez', 'Robert Chen'])}, BSA Officer
-Approval Date: {(review_date + timedelta(days=random.randint(1, 5))).strftime('%B %d, %Y')}
+Next Review: {(review_date + timedelta(days=random.choice([90, 180, 365]))).strftime('%Y-%m-%d')}
+
+Prepared by: {random.choice(['Sarah Chen', 'Michael Rodriguez'])}, AML Analyst
 """
-    
     return memo
 
-# COMMAND ----------
-
-# Generate EDD memos for high/medium risk customers
+# Generate EDD memos
 edd_dir = f"{VOLUME_PATH}/edd_memos"
-dbutils.fs.mkdirs(edd_dir)
+os.makedirs(edd_dir, exist_ok=True)
 
 edd_count = 0
-high_risk_customers = customers_df[customers_df["risk_rating"].isin(["high", "medium"])]
-
-for _, customer in high_risk_customers.iterrows():
-    customer_id = customer["customer_id"]
-    
-    memo = generate_edd_memo(customer.to_dict())
-    
-    filename = f"EDD_customer_{customer_id:04d}_{fake.date_between(start_date='-6m', end_date='today').strftime('%Y%m%d')}.txt"
-    filepath = f"{edd_dir}/{filename}"
-    
-    dbutils.fs.put(filepath, memo, overwrite=True)
-    edd_count += 1
+for _, customer in customers_df.iterrows():
+    if customer["risk_rating"] == "high" or (customer["risk_rating"] == "medium" and random.random() < 0.3):
+        cust_txns = transactions_df[transactions_df["customer_id"] == customer["customer_id"]].to_dict('records')
+        memo = generate_edd_memo(customer.to_dict(), cust_txns)
+        filename = f"edd_{customer['customer_id']:04d}_{fake.date_between(start_date='-90d', end_date='today').strftime('%Y%m%d')}.txt"
+        
+        with open(f"{edd_dir}/{filename}", 'w') as f:
+            f.write(memo)
+        edd_count += 1
 
 print(f"Generated {edd_count} EDD memoranda")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. Generate Adverse Media Screening Results
+# MAGIC ### 2.4 Generate Adverse Media Reports
 
 # COMMAND ----------
 
-def generate_adverse_media_report(customer_info):
+def generate_adverse_media(customer_info):
     """Generate adverse media screening report."""
     
-    customer_id = customer_info["customer_id"]
-    customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip()
-    if not customer_name:
-        customer_name = customer_info.get("business_name", "Unknown Entity")
-    
-    screening_date = fake.date_between(start_date="-3m", end_date="today")
+    customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip() or "Unknown"
+    screening_date = fake.date_between(start_date="-30d", end_date="today")
+    has_findings = random.random() < 0.15
     
     report = f"""ADVERSE MEDIA SCREENING REPORT
-
-Date: {screening_date.strftime('%B %d, %Y')}
-Customer: {customer_name}
-Customer ID: {customer_id}
-Screening System: LexisNexis WorldCompliance
-Analyst: {random.choice(['Tom Richards', 'Sarah Chen', 'Michael Rodriguez'])}
-
 ================================================================================
 
-SEARCH PARAMETERS:
-
-Name Searched: {customer_name}
-Date of Birth: {customer_info.get('date_of_birth', 'N/A')}
-Location: {customer_info.get('address_city', '')}, {customer_info.get('address_state', '')}
-Search Scope: Global news, regulatory actions, legal proceedings, sanctions lists
+Subject: {customer_name} (ID: {customer_info['customer_id']})
+Date: {screening_date}
+Sources: LexisNexis, Dow Jones, Google News
 
 ================================================================================
-
-SEARCH RESULTS:
+RESULTS
+================================================================================
 
 """
-    
-    # Generate random number of results
-    num_results = random.randint(0, 3)
-    
-    if num_results == 0:
-        report += """No adverse media or negative news identified for this customer.
+    if has_findings:
+        report += f"""FINDINGS: 1 potential match
 
-Search covered:
-- Global news sources (past 5 years)
-- Regulatory enforcement actions
-- Legal proceedings and judgments
-- Sanctions and watchlists
-
-ASSESSMENT: CLEAR - No derogatory information found.
+Source: {random.choice(['Civil Litigation', 'Business News', 'Regulatory Filing'])}
+Date: {fake.date_between(start_date='-3y', end_date='-6m').strftime('%B %Y')}
+Assessment: {random.choice(['LOW - Different individual', 'LOW - Matter resolved'])}
+Disposition: CLEARED
 """
     else:
-        for i in range(num_results):
-            relevance = random.choice(["High", "Moderate", "Low", "Uncertain"])
-            source = random.choice(["Financial Times", "Reuters", "Wall Street Journal", "Local News", "Court Records", "Regulatory Database"])
-            article_date = fake.date_between(start_date="-3y", end_date="-6m")
-            
-            report += f"""Result {i+1} - {relevance} Relevance
-Source: {source}
-Date: {article_date.strftime('%B %d, %Y')}
-Headline: "{fake.sentence(nb_words=8)}"
-Summary: {fake.paragraph(nb_sentences=2)}
-Match Confidence: {random.randint(40, 95)}%
-
-"""
-        
-        report += f"""================================================================================
-
-ANALYST ASSESSMENT:
-
-{random.choice([
-    'Results reviewed and determined to be false positives based on name similarity only.',
-    'Result 1 represents potential reputational risk. Recommend escalation for further review.',
-    'Matches appear to reference different individuals. No action required.',
-    'Minor references found but not material to banking relationship. Continue monitoring.'
-])}
-
-Recommendation: {random.choice([
-    'Clear for continued relationship',
-    'Flag for BSA Officer review',
-    'Schedule enhanced monitoring',
-    'Request additional customer information'
-])}
-"""
+        report += "FINDINGS: NONE\n\nNo adverse media identified.\n"
     
     report += f"""
 ================================================================================
 
-SCREENING CERTIFIED BY:
+Result: {'CLEARED' if not has_findings or random.random() > 0.5 else 'NOTED'}
+Next Screening: {(screening_date + timedelta(days=180)).strftime('%Y-%m-%d')}
 
-Analyst: {random.choice(['Tom Richards', 'Sarah Chen', 'Michael Rodriguez'])}
-Date: {screening_date.strftime('%B %d, %Y')}
-Next Screening Due: {(screening_date + timedelta(days=365)).strftime('%B %d, %Y')}
+Reviewed by: {random.choice(['Sarah Chen', 'Emily Thompson'])}
 """
-    
     return report
 
-# COMMAND ----------
-
-# Generate adverse media reports
+# Generate adverse media
 media_dir = f"{VOLUME_PATH}/adverse_media"
-dbutils.fs.mkdirs(media_dir)
+os.makedirs(media_dir, exist_ok=True)
 
 media_count = 0
-
-# Generate for all high-risk and some medium-risk customers
 for _, customer in customers_df.iterrows():
-    customer_id = customer["customer_id"]
-    
-    # Generate for high-risk, 50% of medium-risk
     if customer["risk_rating"] == "high" or (customer["risk_rating"] == "medium" and random.random() < 0.5):
-        report = generate_adverse_media_report(customer.to_dict())
+        report = generate_adverse_media(customer.to_dict())
+        filename = f"screening_{customer['customer_id']:04d}_{fake.date_between(start_date='-30d', end_date='today').strftime('%Y%m%d')}.txt"
         
-        filename = f"screening_customer_{customer_id:04d}_{fake.date_between(start_date='-3m', end_date='today').strftime('%Y%m%d')}.txt"
-        filepath = f"{media_dir}/{filename}"
-        
-        dbutils.fs.put(filepath, report, overwrite=True)
+        with open(f"{media_dir}/{filename}", 'w') as f:
+            f.write(report)
         media_count += 1
 
-print(f"Generated {media_count} adverse media screening reports")
+print(f"Generated {media_count} adverse media reports")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5. Generate Customer Correspondence Logs
+# MAGIC ### 2.5 Generate Correspondence Logs
 
 # COMMAND ----------
 
-def generate_correspondence_log(customer_info):
-    """Generate customer correspondence/interaction log."""
+def generate_correspondence(customer_info):
+    """Generate customer correspondence log."""
     
-    customer_id = customer_info["customer_id"]
-    customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip()
-    if not customer_name:
-        customer_name = customer_info.get("business_name", "Unknown Entity")
-    
+    customer_name = f"{customer_info.get('first_name', '')} {customer_info.get('last_name', '')}".strip() or "Unknown"
     contact_date = fake.date_between(start_date="-60d", end_date="today")
     
-    contact_types = [
-        ("Branch Visit", "Main Street Branch", "Jennifer Adams (Personal Banker)"),
-        ("Phone Call", "Customer Service", "Mark Thompson (CSR)"),
-        ("Branch Visit", "Oak Avenue Branch", "Linda Chen (Branch Manager)"),
-        ("Email Correspondence", "Online Banking", "System Generated"),
-    ]
-    
-    contact_type, location, staff = random.choice(contact_types)
+    if customer_info.get("risk_rating") == "high":
+        interaction = random.choice([
+            "Customer deposited $9,500 cash. Asked about CTR threshold. Explained structuring is illegal.",
+            "Customer inquired about international wires. Vague about purpose. Noted for review.",
+            "Customer requested to add signer without proper ID. Declined per CIP requirements."
+        ])
+    else:
+        interaction = random.choice([
+            "Customer updated contact information. Routine inquiry about savings rates.",
+            "Customer called about unrecognized transaction. Confirmed legitimate. No concerns.",
+            "Customer deposited insurance check with documentation. Normal transaction."
+        ])
     
     log = f"""CUSTOMER CORRESPONDENCE LOG
-
-Customer: {customer_name} (ID: {customer_id})
-Account: XXXXX{random.randint(1000, 9999)}
-Date: {contact_date.strftime('%B %d, %Y')}
-Contact Type: {contact_type}
-Location: {location}
-Staff: {staff}
-
 ================================================================================
 
-SUMMARY OF INTERACTION:
+Customer: {customer_name} (ID: {customer_info['customer_id']})
+Date: {contact_date}
+Type: {random.choice(['Branch Visit', 'Phone Call', 'Email'])}
 
+================================================================================
+SUMMARY
+================================================================================
+
+{interaction}
+
+Action: {random.choice(['Logged', 'Flagged for review', 'No action needed'])}
+Staff: {random.choice(['Jennifer Adams', 'Mark Thompson', 'Linda Chen'])}
 """
-    
-    # Generate interaction content based on customer risk
-    if customer_info.get("risk_rating") == "high":
-        interactions = [
-            f"""Customer visited branch to make a cash deposit of $9,500. When informed about CTR requirements for deposits over $10,000, customer asked "what if I deposit less?"
-
-Staff explained that structuring deposits to avoid reporting is illegal. Customer stated "I'm not trying to avoid anything, I just have cash from my business."
-
-When asked about business documentation, customer became defensive and stated "This is my money, I don't need to prove anything."
-
-Customer ultimately deposited $9,500.""",
-            
-            f"""Customer called to inquire about wire transfer limits. Specifically asked about transfers to {random.choice(['Dubai', 'Hong Kong', 'Singapore', 'Cyprus'])}.
-
-When asked about the purpose of the transfer, customer provided vague response about "business investments." Customer was unable to provide details about the receiving party.
-
-Customer was advised that additional documentation may be required for international wires.""",
-            
-            f"""Customer visited branch requesting to add authorized signer to account. The proposed signer was not present and customer could not provide their identification.
-
-Staff explained that the authorized signer must be present with valid ID. Customer became frustrated and stated "this is ridiculous, they're family."
-
-Customer left without adding authorized signer."""
-        ]
-    else:
-        interactions = [
-            f"""Customer visited branch to update contact information. New address and phone number verified and updated in system.
-
-Customer also inquired about savings account options. Provided information on current rates and account types.
-
-Pleasant interaction, no concerns noted.""",
-            
-            f"""Customer called regarding recent transaction that didn't recognize. After review, confirmed it was a subscription service customer had forgotten about.
-
-Customer thanked representative for the assistance. No fraud suspected.""",
-            
-            f"""Customer visited branch to deposit check from insurance settlement. Check amount: ${random.randint(5000, 50000):,}.
-
-Customer provided documentation explaining source of funds (insurance claim). Documentation copied and retained per policy.
-
-Normal transaction, no concerns."""
-        ]
-    
-    log += random.choice(interactions)
-    
-    log += f"""
-
-================================================================================
-
-ACTIONS TAKEN:
-
-- {random.choice(['Interaction logged in CRM', 'Documentation retained in customer file', 'Suspicious activity referral submitted', 'No action required'])}
-- {random.choice(['Customer file updated', 'Manager notified', 'Standard processing', 'Follow-up scheduled'])}
-
-PRIOR INTERACTIONS:
-- {random.choice(['No prior notable interactions', 'Similar inquiry on ' + fake.date_between(start_date="-6m", end_date="-1m").strftime("%B %d, %Y"), 'Previous cash deposit discussion on file'])}
-
-================================================================================
-
-Logged By: {staff.split('(')[0].strip()}
-Date: {contact_date.strftime('%B %d, %Y')}
-"""
-    
     return log
 
-# COMMAND ----------
+# Generate correspondence
+corr_dir = f"{VOLUME_PATH}/correspondence"
+os.makedirs(corr_dir, exist_ok=True)
 
-# Generate correspondence logs
-correspondence_dir = f"{VOLUME_PATH}/correspondence"
-dbutils.fs.mkdirs(correspondence_dir)
-
-correspondence_count = 0
-
-# Generate for customers with alerts or high risk
-alert_customer_ids = set(alerts_df["customer_id"].unique())
-
+corr_count = 0
+alert_customers = set(alerts_df["customer_id"].unique())
 for _, customer in customers_df.iterrows():
-    customer_id = customer["customer_id"]
-    
-    # Generate for customers with alerts, high-risk, or random 10%
-    if customer_id in alert_customer_ids or customer["risk_rating"] == "high" or random.random() < 0.1:
-        log = generate_correspondence_log(customer.to_dict())
+    if customer["customer_id"] in alert_customers or customer["risk_rating"] == "high" or random.random() < 0.1:
+        log = generate_correspondence(customer.to_dict())
+        filename = f"corr_{customer['customer_id']:04d}_{fake.date_between(start_date='-60d', end_date='today').strftime('%Y%m%d')}.txt"
         
-        filename = f"correspondence_customer_{customer_id:04d}_{fake.date_between(start_date='-60d', end_date='today').strftime('%Y%m%d')}.txt"
-        filepath = f"{correspondence_dir}/{filename}"
-        
-        dbutils.fs.put(filepath, log, overwrite=True)
-        correspondence_count += 1
+        with open(f"{corr_dir}/{filename}", 'w') as f:
+            f.write(log)
+        corr_count += 1
 
-print(f"Generated {correspondence_count} correspondence logs")
+print(f"Generated {corr_count} correspondence logs")
 
 # COMMAND ----------
 
@@ -734,29 +636,45 @@ print(f"Generated {correspondence_count} correspondence logs")
 
 # COMMAND ----------
 
-# Count all generated documents
-print("=" * 60)
-print("Knowledge Base Document Generation Summary")
-print("=" * 60)
+print("=" * 70)
+print("KNOWLEDGE BASE GENERATION COMPLETE")
+print("=" * 70)
 
-directories = ["sar_narratives", "case_notes", "edd_memos", "adverse_media", "correspondence"]
+directories = {
+    "policies_and_regulations/ffiec": "FFIEC Guidance",
+    "policies_and_regulations/fincen": "FinCEN Guidance", 
+    "policies_and_regulations/ofac": "OFAC Compliance",
+    "policies_and_regulations/internal": "Institution Policies",
+    "sar_narratives": "SAR Narratives",
+    "case_notes": "Case Notes",
+    "edd_memos": "EDD Memoranda",
+    "adverse_media": "Adverse Media",
+    "correspondence": "Correspondence"
+}
 
-for dir_name in directories:
+total = 0
+for path, label in directories.items():
     try:
-        files = dbutils.fs.ls(f"{VOLUME_PATH}/{dir_name}")
-        print(f"{dir_name.upper()}: {len(files)} documents")
+        full_path = f"{VOLUME_PATH}/{path}"
+        files = os.listdir(full_path)
+        count = len(files)
+        total += count
+        print(f"{label:25} {count:5} docs")
     except:
-        print(f"{dir_name.upper()}: 0 documents")
+        print(f"{label:25}     0 docs")
 
-print("=" * 60)
-print(f"\nAll documents saved to: {VOLUME_PATH}")
+print("-" * 40)
+print(f"{'TOTAL':25} {total:5} docs")
+print(f"\nLocation: {VOLUME_PATH}")
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Next Steps
 # MAGIC
-# MAGIC 1. **Configure Knowledge Assistant** - Point the vector store to this volume
-# MAGIC 2. **Set chunking strategy** - Recommend ~500 token chunks with 50 token overlap
-# MAGIC 3. **Add metadata** - Include customer_id, document_type, date for filtering
-# MAGIC 4. **Test retrieval** - Query for specific customers to verify linkage
+# MAGIC 1. **Configure Knowledge Assistant** - Point vector store to this volume
+# MAGIC 2. **Chunking** - ~500 tokens with 50 token overlap
+# MAGIC 3. **Test queries**:
+# MAGIC    - "What are the red flags for structuring?"
+# MAGIC    - "What does our AML policy say about third-party deposits?"
+# MAGIC    - "Show EDD memo for customer 25"
