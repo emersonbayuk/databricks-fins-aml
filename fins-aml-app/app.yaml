@@ -1,0 +1,35 @@
+name: fins-aml-platform
+display_name: "FINS AML Investigation Platform"
+description: "AI-powered Anti-Money Laundering investigation platform with executive dashboards and analyst workflows"
+
+command: [
+  "uvicorn",
+  "main:app",
+  "--host=0.0.0.0",
+  "--port=8000"
+]
+
+resources:
+  - name: sql_warehouse
+    type: sql_warehouse
+    permission: CAN_USE
+  - name: serving.serving-endpoints
+    permission: CAN_QUERY
+
+env:
+  - name: 'DATABRICKS_WAREHOUSE_ID'
+    valueFrom: sql_warehouse
+  - name: 'DATABRICKS_TOKEN'
+    valueFrom: secret
+  - name: 'MAS_ENDPOINT_URL'
+    value: 'https://fe-vm-industry-solutions-buildathon.cloud.databricks.com/serving-endpoints/mas-e3a6f805-endpoint/invocations'
+  - name: 'NEO4J_URI'
+    value: 'neo4j+s://398dd975.databases.neo4j.io'
+  - name: 'NEO4J_USER'
+    value: 'neo4j'
+  - name: 'NEO4J_PASSWORD'
+    valueFrom: secret-2
+  - name: 'NEO4J_DATABASE'
+    value: 'neo4j'
+  - name: 'DATABRICKS_PAT_TOKEN'
+    valueFrom: secret-3
