@@ -1,31 +1,25 @@
 <div align="center">
 
-![SherlockAML Logo](https://img.shields.io/badge/🔍_SherlockAML-Investigation_Platform-1B1F23?style=for-the-badge&labelColor=2A2F35&color=5FA8D3)
+<div>
+  <svg width="72" height="72" viewBox="0 0 24 24" fill="none" style="background: linear-gradient(135deg, #5FA8D3 0%, #AB4057 100%); border-radius: 16px; padding: 20px; margin: 20px auto;">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="white" stroke-width="2"/>
+  </svg>
+</div>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/AI--Powered_Anti--Money_Laundering-Investigation_Platform-E4E9EE?style=flat&labelColor=1B1F23&color=2A2F35">
-  <img alt="Platform Description" src="https://img.shields.io/badge/AI--Powered_Anti--Money_Laundering-Investigation_Platform-1B1F23?style=flat&labelColor=2A2F35&color=5FA8D3">
-</picture>
+# SherlockAML
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/Complete_end--to--end_solution-Multi--agent_workflows_•_Interactive_dashboards-97A7B3?style=flat&labelColor=1B1F23&color=2A2F35">
-  <img alt="Solution Description" src="https://img.shields.io/badge/Complete_end--to--end_solution-Multi--agent_workflows_•_Interactive_dashboards-97A7B3?style=flat&labelColor=2A2F35&color=5FA8D3">
-</picture>
+**AI-powered Anti-Money Laundering investigation platform built on Databricks**
 
-<br><br>
+*Complete end-to-end solution with synthetic data generation, multi-agent investigation workflows, and interactive dashboards*
 
-[![Databricks](https://img.shields.io/badge/🧱_Databricks-Platform-1B1F23?style=for-the-badge&logo=databricks&logoColor=FF3621&labelColor=2A2F35)](https://databricks.com/)
-[![Python](https://img.shields.io/badge/🐍_Python-3.9+-1B1F23?style=for-the-badge&logo=python&logoColor=3776AB&labelColor=2A2F35)](https://python.org/)
-[![React](https://img.shields.io/badge/⚛️_React-18+-1B1F23?style=for-the-badge&logo=react&logoColor=61DAFB&labelColor=2A2F35)](https://reactjs.org/)
-[![FastAPI](https://img.shields.io/badge/⚡_FastAPI-Backend-1B1F23?style=for-the-badge&logo=fastapi&logoColor=009688&labelColor=2A2F35)](https://fastapi.tiangolo.com/)
+[![Databricks](https://img.shields.io/badge/Databricks-Platform-FF3621?style=flat&logo=databricks)](https://databricks.com/)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org/)
+[![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 
 </div>
 
-<div align="center">
-
-![Repository Structure](https://img.shields.io/badge/📁_Repository-Structure-1B1F23?style=for-the-badge&labelColor=2A2F35&color=5FA8D3)
-
-</div>
+## 📁 Repository Structure
 
 <div align="left">
 
@@ -51,13 +45,9 @@ fins-aml-amer/
 
 </div>
 
-<div align="center">
+## 🔄 Notebook Execution Order
 
-![Notebook Execution Order](https://img.shields.io/badge/🔄_Notebook-Execution_Order-1B1F23?style=for-the-badge&labelColor=2A2F35&color=5FA8D3)
-
-</div>
-
-> **⚡ Run notebooks in this sequence — each depends on tables created by previous steps.**
+> Run notebooks in this sequence — each depends on tables created by previous steps.
 
 | Step | 📓 Notebook | 🏗️ Creates | 🔗 Dependencies |
 |------|-------------|------------|-----------------|
@@ -66,11 +56,7 @@ fins-aml-amer/
 | **3** | `03_aml_graph_model` | `graph_nodes`, `graph_edges` | Steps 1-2 |
 | **4** | `04_aml_knowledge_base` | Knowledge base volume (RAG docs) | Step 1 |
 
-<div align="center">
-
-![Interactive Investigation Application](https://img.shields.io/badge/🖥️_Interactive-Investigation_Application-1B1F23?style=for-the-badge&labelColor=2A2F35&color=5FA8D3)
-
-</div>
+## 🖥️ Interactive Investigation Application
 
 The `fins-aml-app/` folder contains a complete web-based investigation platform built on **Databricks App Framework**. The application provides:
 
@@ -208,11 +194,7 @@ CATALOG = "fins_aml"
 SCHEMA = "data_generation"
 ```
 
-<div align="center">
-
-![Quick Start](https://img.shields.io/badge/🚀_Quick-Start-1B1F23?style=for-the-badge&labelColor=2A2F35&color=00A972)
-
-</div>
+## 🚀 Quick Start
 
 ### 🔢 Data Pipeline Setup
 1. **Clone** this repo to your Databricks workspace
