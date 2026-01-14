@@ -33,6 +33,8 @@ fins-aml-amer/
 │   └── 📋 docs/                     # Documentation and diagrams
 │       ├── 🎨 banner.svg            # Platform banner
 │       └── 📊 erd_updated.svg       # Entity relationship diagram
+├── 📊 dashboards/                   # Lakeview dashboard exports
+│   └── 🎯 SherlockAML_ExecDash_Final.lvdash.json  # Executive dashboard
 └── 🖥️  fins-aml-app/                # Interactive investigation application
     ├── ⚡ main.py                   # Databricks application entry point
     ├── 🔧 backend/                  # FastAPI backend services
@@ -59,15 +61,37 @@ The `fins-aml-app/` folder contains a complete web-based investigation platform 
 
 <div align="left">
 
-🤖 **Multi-agent Investigation Workflow** - AI-powered analyst, executive, and agent roles
-📋 **Interactive Case Management** - Real-time case investigation with document analysis
-🕸️ **Graph Visualization** - Network analysis for relationship mapping
-📑 **SAR Generation** - Automated Suspicious Activity Report creation
-🔍 **Knowledge Base Integration** - RAG-powered document search and analysis
+- 🤖 **Multi-agent Investigation Workflow** - AI-powered analyst, executive, and agent roles
+- 📋 **Interactive Case Management** - Real-time case investigation with document analysis
+- 🕸️ **Graph Visualization** - Network analysis for relationship mapping
+- 📑 **SAR Generation** - Automated Suspicious Activity Report creation
+- 🔍 **Knowledge Base Integration** - RAG-powered document search and analysis
 
 </div>
 
 > 💡 **Deployment**: Navigate to the `fins-aml-app/` directory and follow the deployment instructions in that folder's documentation.
+
+## 📊 Dashboard Configuration
+
+The application includes embedded Lakeview dashboards for executive reporting. After importing the dashboard:
+
+### 🔧 Configure Dashboard IDs
+
+1. **Import Dashboard**: Use the Databricks UI to import `dashboards/SherlockAML_ExecDash_Final.lvdash.json`
+2. **Copy Dashboard ID**: From the dashboard URL in your workspace
+3. **Update Configuration**: Modify the dashboard ID in `fins-aml-app/backend/api/auth.py`:
+
+```python
+# Line 52: Update with your imported dashboard ID
+dashboard_id = "YOUR_DASHBOARD_ID_HERE"
+```
+
+### 🔐 Authentication Setup
+
+The app supports multiple authentication methods:
+- **Service Principal** (recommended for production)
+- **Personal Access Token** (development/testing)
+- **User Token** (workspace users)
 
 ## Entity Relationship Diagram
 
@@ -177,10 +201,18 @@ SCHEMA = "data_generation"
 3. **Execute** notebooks 01 → 02 → 03 → 04 in order
 4. **Configure** Knowledge Assistant to index the `knowledge_base` volume
 
+### 📊 Dashboard Setup
+5. **Import** the Lakeview dashboard from `dashboards/SherlockAML_ExecDash_Final.lvdash.json`
+6. **Note the new dashboard ID** from your workspace after import
+7. **Update** the dashboard ID in `fins-aml-app/backend/api/auth.py` (line 52)
+
 ### 🖥️ Application Deployment
-5. **Navigate** to the `fins-aml-app/` folder
-6. **Deploy** the interactive investigation application following the instructions in that directory
-7. **Import** Lakeview dashboards for executive reporting
+8. **Configure** environment variables for your workspace:
+   - `DATABRICKS_CLIENT_ID` - Service principal client ID
+   - `DATABRICKS_CLIENT_SECRET` - Service principal secret
+   - `DATABRICKS_PAT_TOKEN` - Personal access token (fallback)
+9. **Navigate** to the `fins-aml-app/` folder
+10. **Deploy** the interactive investigation application following the deployment instructions
 
 ---
 
