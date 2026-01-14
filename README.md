@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/sherlock-banner.svg" alt="SherlockAML" width="100%"/>
+  <img src="assets/sherlock-logo.svg" alt="SherlockAML" width="100%"/>
 </p>
 
 <p align="center">
