@@ -1,16 +1,12 @@
+<p align="center">
+  <img src="assets/sherlock-banner.svg" alt="SherlockAML" width="100%"/>
+</p>
+
+<p align="center">
+  <em>Complete end-to-end solution with synthetic data generation, multi-agent investigation workflows, and interactive dashboards</em>
+</p>
+
 <div align="center">
-
-<div>
-  <svg width="72" height="72" viewBox="0 0 24 24" fill="none" style="background: linear-gradient(135deg, #5FA8D3 0%, #AB4057 100%); border-radius: 16px; padding: 20px; margin: 20px auto;">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="white" stroke-width="2"/>
-  </svg>
-</div>
-
-# SherlockAML
-
-**AI-powered Anti-Money Laundering investigation platform built on Databricks**
-
-*Complete end-to-end solution with synthetic data generation, multi-agent investigation workflows, and interactive dashboards*
 
 [![Databricks](https://img.shields.io/badge/Databricks-Platform-FF3621?style=flat&logo=databricks)](https://databricks.com/)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org/)
@@ -19,6 +15,8 @@
 
 </div>
 
+---
+
 ## 📁 Repository Structure
 
 <div align="left">
@@ -26,6 +24,8 @@
 ```
 fins-aml-amer/
 ├── 📄 README.md                     # This documentation
+├── 🎨 assets/                       # Images and visual assets
+│   └── 🖼️  sherlock-banner.svg       # SherlockAML banner logo
 ├── 🔢 fins-aml-datagen/             # Core data pipeline and analysis notebooks
 │   ├── 🏗️  01_aml_data_generation    # Core tables + alerts/cases/SARs + views
 │   ├── 🎯 02_aml_watchlist_screening # Watchlist and sanctions screening
