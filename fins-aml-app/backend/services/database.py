@@ -6,8 +6,10 @@ import os
 import asyncio
 import logging
 import json
+import time
 from typing import List, Dict, Any, Optional
 from databricks import sql
+from databricks.sql.exc import ServerOperationError, RequestError, SessionAlreadyClosedError
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
@@ -25,10 +27,22 @@ class DatabaseService:
         self.token = token or os.getenv('DATABRICKS_TOKEN') or "dummy_token"
         self.hostname = hostname
         self._connection = None
+        self._last_connection_time = None
+        self._connection_timeout = 300  # 5 minutes
+        self._max_retries = 3
 
-    async def get_connection(self):
-        """Get or create a database connection"""
-        if not self._connection:
+    async def get_connection(self, force_refresh=False):
+        """Get or create a database connection with automatic refresh"""
+        # Check if we need to refresh the connection
+        should_refresh = (
+            force_refresh or
+            not self._connection or
+            (self._last_connection_time and
+             time.time() - self._last_connection_time > self._connection_timeout)
+        )
+
+        if should_refresh:
+            await self._close_connection()
             try:
                 # Run connection creation in thread pool since databricks.sql is sync
                 loop = asyncio.get_event_loop()
@@ -40,47 +54,80 @@ class DatabaseService:
                         access_token=self.token
                     )
                 )
-                logger.info("Database connection established")
+                self._last_connection_time = time.time()
+                logger.info("Database connection established/refreshed")
             except Exception as e:
                 logger.error(f"Failed to create database connection: {e}")
+                self._connection = None
                 raise
         return self._connection
 
+    async def _close_connection(self):
+        """Safely close existing connection"""
+        if self._connection:
+            try:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, self._connection.close)
+            except Exception as e:
+                logger.debug(f"Error closing old connection (may be already closed): {e}")
+            finally:
+                self._connection = None
+
     async def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None, cache_ttl: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Execute a SQL query and return results as list of dictionaries"""
-        try:
-            # Check cache if TTL is specified
-            if cache_ttl:
-                cache_key = self._get_cache_key(query, params)
-                cached_result = self._get_cached_result(cache_key, cache_ttl)
-                if cached_result is not None:
-                    logger.info(f"Cache hit for query: {query[:50]}...")
-                    return cached_result
+        """Execute a SQL query and return results as list of dictionaries with retry logic"""
+        # Check cache if TTL is specified
+        if cache_ttl:
+            cache_key = self._get_cache_key(query, params)
+            cached_result = self._get_cached_result(cache_key, cache_ttl)
+            if cached_result is not None:
+                logger.info(f"Cache hit for query: {query[:50]}...")
+                return cached_result
 
-            connection = await self.get_connection()
+        last_error = None
+        for attempt in range(self._max_retries):
+            try:
+                # Get connection (will refresh if needed)
+                connection = await self.get_connection()
 
-            # Execute query in thread pool
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                self._execute_sync_query,
-                connection,
-                query,
-                params
-            )
+                # Execute query in thread pool
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                    None,
+                    self._execute_sync_query,
+                    connection,
+                    query,
+                    params
+                )
 
-            # Cache result if TTL is specified
-            if cache_ttl:
-                self._cache_result(cache_key, result)
-                logger.info(f"Cached query result for {cache_ttl} seconds")
+                # Cache result if TTL is specified
+                if cache_ttl:
+                    self._cache_result(cache_key, result)
+                    logger.info(f"Cached query result for {cache_ttl} seconds")
 
-            return result
+                return result
 
-        except Exception as e:
-            logger.error(f"Query execution failed: {e}")
-            logger.error(f"Query: {query}")
-            logger.error(f"Params: {params}")
-            raise Exception(f"Database query failed: {str(e)}")
+            except (RequestError, ServerOperationError, SessionAlreadyClosedError) as e:
+                last_error = e
+                logger.warning(f"Query attempt {attempt + 1}/{self._max_retries} failed: {type(e).__name__}: {str(e)[:100]}")
+
+                # Force connection refresh on connection errors
+                if attempt < self._max_retries - 1:
+                    logger.info(f"Refreshing connection and retrying...")
+                    await asyncio.sleep(1 * (attempt + 1))  # Exponential backoff
+                    # Force refresh the connection
+                    await self.get_connection(force_refresh=True)
+
+            except Exception as e:
+                logger.error(f"Query execution failed with unexpected error: {e}")
+                logger.error(f"Query: {query[:200]}...")
+                logger.error(f"Params: {params}")
+                raise Exception(f"Database query failed: {str(e)}")
+
+        # If we exhausted all retries
+        logger.error(f"Query failed after {self._max_retries} attempts")
+        logger.error(f"Query: {query[:200]}...")
+        logger.error(f"Params: {params}")
+        raise Exception(f"Database query failed after {self._max_retries} retries: {str(last_error)}")
 
     def _execute_sync_query(self, connection, query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Synchronous query execution (run in thread pool)"""
@@ -126,12 +173,5 @@ class DatabaseService:
 
     async def close(self):
         """Close database connection"""
-        if self._connection:
-            try:
-                loop = asyncio.get_event_loop()
-                await loop.run_in_executor(None, self._connection.close)
-                logger.info("Database connection closed")
-            except Exception as e:
-                logger.error(f"Error closing connection: {e}")
-            finally:
-                self._connection = None
+        await self._close_connection()
+        logger.info("Database connection closed")

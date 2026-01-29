@@ -488,7 +488,7 @@
         };
 
         // Header Component
-        const Header = ({ activeTab, onTabChange, selectedAnalyst, onAnalystChange, analysts }) => {
+        const Header = ({ activeTab, onTabChange, selectedAnalyst, onAnalystChange, analysts, onGoHome }) => {
             return (
                 <div style={{
                     background: colors.bg.secondary,
@@ -507,8 +507,14 @@
                             background: `linear-gradient(135deg, ${colors.accent.blue} 0%, ${colors.accent.violet} 100%)`,
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
+                            justifyContent: 'center',
+                            cursor: onGoHome ? 'pointer' : 'default',
+                            transition: 'transform 0.2s ease'
+                        }}
+                        onClick={onGoHome}
+                        onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                        onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        title="Go to Home">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                             </svg>
@@ -517,8 +523,10 @@
                             fontSize: '18px',
                             fontWeight: '600',
                             color: colors.text.primary,
-                            letterSpacing: '-0.02em'
-                        }}>
+                            letterSpacing: '-0.02em',
+                            cursor: onGoHome ? 'pointer' : 'default'
+                        }}
+                        onClick={onGoHome}>
                             SherlockAML
                         </span>
                     </div>
@@ -5872,14 +5880,503 @@
             );
         };
 
+        // Home Page Component with stunning animations
+        const HomePage = ({ onNavigate }) => {
+            const [isLoaded, setIsLoaded] = useState(false);
+            const [hoveredCard, setHoveredCard] = useState(null);
+            const [particlesAnimation, setParticlesAnimation] = useState(true);
+
+            useEffect(() => {
+                setIsLoaded(true);
+                // Particle animation loop
+                const interval = setInterval(() => {
+                    setParticlesAnimation(prev => !prev);
+                }, 4000);
+                return () => clearInterval(interval);
+            }, []);
+
+            // Generate network particles for animation
+            const particles = Array.from({ length: 50 }, (_, i) => ({
+                id: i,
+                x: Math.random() * 100,
+                y: Math.random() * 100,
+                size: Math.random() * 3 + 1,
+                duration: Math.random() * 20 + 10
+            }));
+
+            return (
+                <div style={{
+                    minHeight: '100vh',
+                    background: `linear-gradient(135deg, ${colors.bg.primary} 0%, #0a0f1b 100%)`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    {/* Animated Background Network */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        opacity: 0.1,
+                        pointerEvents: 'none'
+                    }}>
+                        <svg width="100%" height="100%" style={{ position: 'absolute' }}>
+                            {particles.map(p => (
+                                <circle
+                                    key={p.id}
+                                    cx={`${p.x}%`}
+                                    cy={`${p.y}%`}
+                                    r={p.size}
+                                    fill={colors.accent.blue}
+                                    style={{
+                                        animation: `float ${p.duration}s ease-in-out infinite`,
+                                        animationDelay: `${Math.random() * 5}s`
+                                    }}
+                                />
+                            ))}
+                            {/* Connection lines */}
+                            {particles.slice(0, 20).map((p, i) => {
+                                const nextP = particles[i + 1];
+                                if (!nextP) return null;
+                                return (
+                                    <line
+                                        key={`line-${i}`}
+                                        x1={`${p.x}%`}
+                                        y1={`${p.y}%`}
+                                        x2={`${nextP.x}%`}
+                                        y2={`${nextP.y}%`}
+                                        stroke={colors.accent.blue}
+                                        strokeWidth="0.5"
+                                        opacity="0.3"
+                                        style={{
+                                            animation: `pulse 3s ease-in-out infinite`,
+                                            animationDelay: `${i * 0.1}s`
+                                        }}
+                                    />
+                                );
+                            })}
+                        </svg>
+                    </div>
+
+                    {/* Main Content */}
+                    <div style={{
+                        maxWidth: '1200px',
+                        width: '100%',
+                        padding: '2rem',
+                        position: 'relative',
+                        zIndex: 1
+                    }}>
+                        {/* Logo and Title */}
+                        <div style={{
+                            textAlign: 'center',
+                            marginBottom: '3rem',
+                            opacity: isLoaded ? 1 : 0,
+                            transform: isLoaded ? 'translateY(0)' : 'translateY(-30px)',
+                            transition: 'all 1s ease-out'
+                        }}>
+                            <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '1rem',
+                                marginBottom: '1rem'
+                            }}>
+                                {/* Animated Shield Logo */}
+                                <div style={{
+                                    width: '60px',
+                                    height: '70px',
+                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
+                                    clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    animation: 'pulse 2s ease-in-out infinite'
+                                }}>
+                                    <div style={{
+                                        width: '50px',
+                                        height: '60px',
+                                        background: colors.bg.primary,
+                                        clipPath: 'polygon(50% 5%, 95% 27%, 95% 73%, 50% 95%, 5% 73%, 5% 27%)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '24px',
+                                        fontWeight: 'bold',
+                                        color: colors.accent.blue
+                                    }}>
+                                        AI
+                                    </div>
+                                </div>
+                                <h1 style={{
+                                    fontSize: '3.5rem',
+                                    fontWeight: '700',
+                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    margin: 0,
+                                    letterSpacing: '-0.02em'
+                                }}>
+                                    Sherlock AML
+                                </h1>
+                            </div>
+                            <p style={{
+                                color: colors.text.secondary,
+                                fontSize: '1.2rem',
+                                margin: '0.5rem 0 0 0',
+                                fontWeight: '300'
+                            }}>
+                                Next-Generation Financial Crime Intelligence Platform
+                            </p>
+                            <div style={{
+                                marginTop: '1rem',
+                                display: 'flex',
+                                gap: '2rem',
+                                justifyContent: 'center',
+                                flexWrap: 'wrap'
+                            }}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{
+                                        fontSize: '2rem',
+                                        fontWeight: 'bold',
+                                        color: colors.accent.green,
+                                        animation: 'countUp 2s ease-out'
+                                    }}>90%</div>
+                                    <div style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>Faster Investigations</div>
+                                </div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{
+                                        fontSize: '2rem',
+                                        fontWeight: 'bold',
+                                        color: colors.accent.blue,
+                                        animation: 'countUp 2s ease-out 0.2s'
+                                    }}>50%</div>
+                                    <div style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>Fewer False Positives</div>
+                                </div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{
+                                        fontSize: '2rem',
+                                        fontWeight: 'bold',
+                                        color: colors.accent.purple,
+                                        animation: 'countUp 2s ease-out 0.4s'
+                                    }}>$10M+</div>
+                                    <div style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>Annual Savings</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Navigation Cards */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+                            gap: '2rem',
+                            marginTop: '4rem'
+                        }}>
+                            {/* Executive View Card */}
+                            <div
+                                style={{
+                                    background: hoveredCard === 'executive'
+                                        ? `linear-gradient(135deg, ${colors.bg.secondary}, ${colors.bg.tertiary})`
+                                        : colors.bg.secondary,
+                                    border: `1px solid ${hoveredCard === 'executive' ? colors.accent.blue : colors.border.subtle}`,
+                                    borderRadius: '16px',
+                                    padding: '2rem',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    transform: hoveredCard === 'executive' ? 'scale(1.02)' : 'scale(1)',
+                                    boxShadow: hoveredCard === 'executive'
+                                        ? '0 20px 40px rgba(79, 172, 254, 0.2)'  // Blue shadow
+                                        : 'none',
+                                    opacity: isLoaded ? 1 : 0,
+                                    animation: 'slideInLeft 0.8s ease-out'
+                                }}
+                                onMouseEnter={() => setHoveredCard('executive')}
+                                onMouseLeave={() => setHoveredCard(null)}
+                                onClick={() => onNavigate('executive')}
+                            >
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    marginBottom: '1rem'
+                                }}>
+                                    <div style={{
+                                        width: '50px',
+                                        height: '50px',
+                                        borderRadius: '12px',
+                                        background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.purple})`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '24px'
+                                    }}>
+                                        📊
+                                    </div>
+                                    <div>
+                                        <h2 style={{
+                                            margin: 0,
+                                            color: colors.text.primary,
+                                            fontSize: '1.5rem'
+                                        }}>Executive Dashboard</h2>
+                                        <p style={{
+                                            margin: '0.25rem 0 0 0',
+                                            color: colors.accent.blue,
+                                            fontSize: '0.875rem',
+                                            fontWeight: '500'
+                                        }}>Chief Compliance Officer View</p>
+                                    </div>
+                                </div>
+                                <p style={{
+                                    color: colors.text.secondary,
+                                    lineHeight: 1.6,
+                                    marginBottom: '1.5rem'
+                                }}>
+                                    Real-time operational intelligence across your entire AML program. Monitor KPIs,
+                                    track team performance, and ensure regulatory compliance with unified dashboards.
+                                </p>
+                                <ul style={{
+                                    listStyle: 'none',
+                                    padding: 0,
+                                    margin: '0 0 1.5rem 0'
+                                }}>
+                                    {['Enterprise risk metrics', 'Compliance deadlines', 'Team performance analytics', 'SAR conversion tracking'].map((item, i) => (
+                                        <li key={i} style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            marginBottom: '0.5rem'
+                                        }}>
+                                            <span style={{ color: colors.accent.green }}>✓</span>
+                                            <span style={{ color: colors.text.secondary }}>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.purple})`,
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    color: colors.bg.primary,  // Changed to dark color for better contrast
+                                    fontWeight: '600',
+                                    fontSize: '1rem',
+                                    cursor: 'pointer',
+                                    transition: 'transform 0.2s ease',
+                                    transform: hoveredCard === 'executive' ? 'translateY(-2px)' : 'translateY(0)'
+                                }}>
+                                    Enter Executive View →
+                                </button>
+                            </div>
+
+                            {/* Investigation View Card */}
+                            <div
+                                style={{
+                                    background: hoveredCard === 'analyst'
+                                        ? `linear-gradient(135deg, ${colors.bg.secondary}, ${colors.bg.tertiary})`
+                                        : colors.bg.secondary,
+                                    border: `1px solid ${hoveredCard === 'analyst' ? colors.accent.blue : colors.border.subtle}`,
+                                    borderRadius: '16px',
+                                    padding: '2rem',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    transform: hoveredCard === 'analyst' ? 'scale(1.02)' : 'scale(1)',
+                                    boxShadow: hoveredCard === 'analyst'
+                                        ? '0 20px 40px rgba(79, 172, 254, 0.2)'  // Blue shadow (same as Executive)
+                                        : 'none',
+                                    opacity: isLoaded ? 1 : 0,
+                                    animation: 'slideInRight 0.8s ease-out'
+                                }}
+                                onMouseEnter={() => setHoveredCard('analyst')}
+                                onMouseLeave={() => setHoveredCard(null)}
+                                onClick={() => onNavigate('analyst')}
+                            >
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    marginBottom: '1rem'
+                                }}>
+                                    <div style={{
+                                        width: '50px',
+                                        height: '50px',
+                                        borderRadius: '12px',
+                                        background: `linear-gradient(135deg, ${colors.accent.green}, ${colors.accent.cyan})`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '24px'
+                                    }}>
+                                        🔍
+                                    </div>
+                                    <div>
+                                        <h2 style={{
+                                            margin: 0,
+                                            color: colors.text.primary,
+                                            fontSize: '1.5rem'
+                                        }}>Alert Investigation</h2>
+                                        <p style={{
+                                            margin: '0.25rem 0 0 0',
+                                            color: colors.accent.blue,  // Changed to match Executive Dashboard blue
+                                            fontSize: '0.875rem',
+                                            fontWeight: '500'
+                                        }}>AML Analyst Workspace</p>
+                                    </div>
+                                </div>
+                                <p style={{
+                                    color: colors.text.secondary,
+                                    lineHeight: 1.6,
+                                    marginBottom: '1.5rem'
+                                }}>
+                                    AI-powered investigation workspace with multi-agent assistance. Analyze alerts,
+                                    gather evidence, and make SAR decisions in minutes instead of hours.
+                                </p>
+                                <ul style={{
+                                    listStyle: 'none',
+                                    padding: 0,
+                                    margin: '0 0 1.5rem 0'
+                                }}>
+                                    {['Intelligent alert prioritization', 'Automated evidence gathering', 'AI investigation assistant', 'One-click SAR generation'].map((item, i) => (
+                                        <li key={i} style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            marginBottom: '0.5rem'
+                                        }}>
+                                            <span style={{ color: colors.accent.green }}>✓</span>
+                                            <span style={{ color: colors.text.secondary }}>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    background: `linear-gradient(135deg, ${colors.accent.green}, ${colors.accent.cyan})`,
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    color: colors.bg.primary,  // Changed to dark color for better contrast
+                                    fontWeight: '600',
+                                    fontSize: '1rem',
+                                    cursor: 'pointer',
+                                    transition: 'transform 0.2s ease',
+                                    transform: hoveredCard === 'analyst' ? 'translateY(-2px)' : 'translateY(0)'
+                                }}>
+                                    Enter Investigation View →
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Bottom Stats Bar */}
+                        <div style={{
+                            marginTop: '4rem',
+                            padding: '1.5rem',
+                            background: colors.bg.secondary,
+                            borderRadius: '12px',
+                            border: `1px solid ${colors.border.subtle}`,
+                            opacity: isLoaded ? 1 : 0,
+                            animation: 'fadeIn 1s ease-out 0.5s both'
+                        }}>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                gap: '2rem',
+                                textAlign: 'center'
+                            }}>
+                                <div>
+                                    <div style={{ color: colors.text.secondary, fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                                        Powered by
+                                    </div>
+                                    <div style={{ color: colors.accent.blue, fontWeight: '600' }}>
+                                        Databricks Intelligence Platform
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style={{ color: colors.text.secondary, fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                                        Processing
+                                    </div>
+                                    <div style={{ color: colors.text.primary, fontWeight: '600' }}>
+                                        100,000+ TPS
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style={{ color: colors.text.secondary, fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                                        Deployment Time
+                                    </div>
+                                    <div style={{ color: colors.text.primary, fontWeight: '600' }}>
+                                        &lt;20 Weeks
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style={{ color: colors.text.secondary, fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                                        Compliance Rate
+                                    </div>
+                                    <div style={{ color: colors.accent.green, fontWeight: '600' }}>
+                                        99.9%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Add CSS animations */}
+                    <style>{`
+                        @keyframes float {
+                            0%, 100% { transform: translateY(0px); }
+                            50% { transform: translateY(-20px); }
+                        }
+                        @keyframes pulse {
+                            0%, 100% { opacity: 0.3; }
+                            50% { opacity: 0.8; }
+                        }
+                        @keyframes slideInLeft {
+                            from {
+                                opacity: 0;
+                                transform: translateX(-50px);
+                            }
+                            to {
+                                opacity: 1;
+                                transform: translateX(0);
+                            }
+                        }
+                        @keyframes slideInRight {
+                            from {
+                                opacity: 0;
+                                transform: translateX(50px);
+                            }
+                            to {
+                                opacity: 1;
+                                transform: translateX(0);
+                            }
+                        }
+                        @keyframes fadeIn {
+                            from { opacity: 0; }
+                            to { opacity: 1; }
+                        }
+                        @keyframes countUp {
+                            from {
+                                opacity: 0;
+                                transform: translateY(20px);
+                            }
+                            to {
+                                opacity: 1;
+                                transform: translateY(0);
+                            }
+                        }
+                    `}</style>
+                </div>
+            );
+        };
+
         // Main App Component
         const App = () => {
-            const [activeTab, setActiveTab] = useState('executive');
+            const [activeTab, setActiveTab] = useState(null); // Start with null to show home page
             const [selectedAnalyst, setSelectedAnalyst] = useState('Sarah Chen');
             const [analysts, setAnalysts] = useState([]);
             const [executiveDashboard, setExecutiveDashboard] = useState(null);
             const [analystDashboard, setAnalystDashboard] = useState(null);
-            const [currentView, setCurrentView] = useState('dashboard'); // dashboard, investigation, sar_filing, dismiss
+            const [currentView, setCurrentView] = useState('home'); // Start with home view
             const [selectedAlert, setSelectedAlert] = useState(null);
 
             // Load analysts on mount
@@ -5949,6 +6446,22 @@
             }, [activeTab, selectedAnalyst, analysts]);
 
             // Navigation handlers
+            const handleNavigateFromHome = (view) => {
+                if (view === 'executive') {
+                    setActiveTab('executive');
+                    setCurrentView('dashboard');
+                } else if (view === 'analyst') {
+                    setActiveTab('analyst');
+                    setCurrentView('dashboard');
+                }
+            };
+
+            const handleGoHome = () => {
+                setActiveTab(null);
+                setCurrentView('home');
+                setSelectedAlert(null);
+            };
+
             const handleTabChange = (tab) => {
                 setActiveTab(tab);
                 setCurrentView('dashboard');
@@ -5992,6 +6505,11 @@
             };
 
             const renderContent = () => {
+                // Show home page if no tab selected
+                if (currentView === 'home' || !activeTab) {
+                    return <HomePage onNavigate={handleNavigateFromHome} />;
+                }
+
                 if (currentView === 'investigation' && selectedAlert) {
                     return (
                         <InvestigationPage
@@ -6042,13 +6560,17 @@
 
             return (
                 <div style={{ minHeight: '100vh', background: colors.bg.primary }}>
-                    <Header
-                        activeTab={activeTab}
-                        onTabChange={handleTabChange}
-                        selectedAnalyst={selectedAnalyst}
-                        onAnalystChange={setSelectedAnalyst}
-                        analysts={analysts}
-                    />
+                    {/* Only show header if not on home page */}
+                    {currentView !== 'home' && activeTab && (
+                        <Header
+                            activeTab={activeTab}
+                            onTabChange={handleTabChange}
+                            selectedAnalyst={selectedAnalyst}
+                            onAnalystChange={setSelectedAnalyst}
+                            analysts={analysts}
+                            onGoHome={handleGoHome}
+                        />
+                    )}
                     {renderContent()}
                 </div>
             );
