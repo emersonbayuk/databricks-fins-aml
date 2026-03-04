@@ -94,18 +94,18 @@ These defaults are used when env vars are not set (e.g., local development). Upd
 
 ---
 
-### 4. `backend/performance_improvements.py` — Hardcoded table names (known issue)
+### 4. `backend/performance_improvements.py` — Hardcoded SQL table references
 
-This file has **hardcoded** catalog.schema.table references instead of using `config.table()`. If your catalog/schema differ, update these lines:
+Unlike the rest of the backend (which uses `config.table()` to dynamically resolve catalog/schema), this file has 4 hardcoded `fins_aml.data_generation.*` table references in its SQL strings. If your target catalog/schema differ, these queries will break.
 
-| Line | Current value | Replace with |
-|------|---------------|-------------|
-| 139 | `fins_aml.data_generation.alerts` | `YOUR_CATALOG.YOUR_SCHEMA.alerts` |
-| 140 | `fins_aml.data_generation.customers` | `YOUR_CATALOG.YOUR_SCHEMA.customers` |
-| 188 | `fins_aml.data_generation.v_analyst_queue` | `YOUR_CATALOG.YOUR_SCHEMA.v_analyst_queue` |
-| 201 | `fins_aml.data_generation.v_analyst_queue` | `YOUR_CATALOG.YOUR_SCHEMA.v_analyst_queue` |
+| Line | Current hardcoded reference |
+|------|---------------------------|
+| 139 | `fins_aml.data_generation.alerts` |
+| 140 | `fins_aml.data_generation.customers` |
+| 188 | `fins_aml.data_generation.v_analyst_queue` |
+| 201 | `fins_aml.data_generation.v_analyst_queue` |
 
-> Ideally, refactor these to use `config.table()` like the rest of the codebase does.
+Update these to match your target catalog/schema, or refactor them to use `config.table()` like the rest of the codebase.
 
 ---
 
