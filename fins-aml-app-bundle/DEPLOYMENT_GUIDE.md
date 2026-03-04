@@ -94,28 +94,13 @@ These defaults are used when env vars are not set (e.g., local development). Upd
 
 ---
 
-### 4. `backend/performance_improvements.py` — Hardcoded SQL table references
-
-Unlike the rest of the backend (which uses `config.table()` to dynamically resolve catalog/schema), this file has 4 hardcoded `fins_aml.data_generation.*` table references in its SQL strings. If your target catalog/schema differ, these queries will break.
-
-| Line | Current hardcoded reference |
-|------|---------------------------|
-| 139 | `fins_aml.data_generation.alerts` |
-| 140 | `fins_aml.data_generation.customers` |
-| 188 | `fins_aml.data_generation.v_analyst_queue` |
-| 201 | `fins_aml.data_generation.v_analyst_queue` |
-
-Update these to match your target catalog/schema, or refactor them to use `config.table()` like the rest of the codebase.
-
----
-
-### 5. `.env.example` — Update example values (optional)
+### 4. `.env.example` — Update example values (optional)
 
 If you want the example file to reflect the new environment, update lines 9–10, 19, 23–24, 27, 30, 33. This file is documentation only and does not affect the running app.
 
 ---
 
-### 6. `frontend/build/index.html` — No changes needed
+### 5. `frontend/build/index.html` — No changes needed
 
 The frontend fetches workspace URL, workspace ID, and dashboard ID dynamically from the backend endpoint `/api/auth/workspace-info`. No hardcoded values need updating.
 
@@ -158,13 +143,13 @@ For the embedded dashboard to work, you must also:
 
 ## Quick Reference — All Environment-Specific Values
 
-| Value | `app.yaml` | `databricks.yml` | `backend/config.py` | `perf_improvements.py` |
-|---|---|---|---|---|
-| Hostname | line 31 | target → `databricks_hostname` | line 12–13 | — |
-| Workspace ID | line 33 | target → `workspace_id` | line 16 | — |
-| Warehouse ID | (auto-resolved) | target → `warehouse_id` | — | — |
-| Dashboard ID | line 35 | target → `dashboard_id` | line 40 | — |
-| Catalog | line 37 | target → `catalog` | line 43 | lines 139,140,188,201 |
-| Schema | line 39 | target → `schema` | line 44 | lines 139,140,188,201 |
-| MAS endpoint | line 41 | target → `mas_endpoint_url` | line 29–30 | — |
-| Neo4j URI | line 43 | target → `neo4j_uri` | line 34 | — |
+| Value | `app.yaml` | `databricks.yml` | `backend/config.py` |
+|---|---|---|---|
+| Hostname | line 31 | target → `databricks_hostname` | line 12–13 |
+| Workspace ID | line 33 | target → `workspace_id` | line 16 |
+| Warehouse ID | (auto-resolved) | target → `warehouse_id` | — |
+| Dashboard ID | line 35 | target → `dashboard_id` | line 40 |
+| Catalog | line 37 | target → `catalog` | line 43 |
+| Schema | line 39 | target → `schema` | line 44 |
+| MAS endpoint | line 41 | target → `mas_endpoint_url` | line 29–30 |
+| Neo4j URI | line 43 | target → `neo4j_uri` | line 34 |
