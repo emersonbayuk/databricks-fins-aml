@@ -6,6 +6,8 @@ import logging
 import os
 import urllib.parse
 
+from backend import config
+
 logger = logging.getLogger(__name__)
 logger.info("🚀 Neo4j graph API module loading...")
 
@@ -47,8 +49,8 @@ if neo4j_service is None:
         def get_relationship_network(self, customer_id, relationship_types=None):
             return None
         driver = None
-        uri = "neo4j+s://398dd975.databases.neo4j.io"
-        database = "neo4j"
+        uri = config.NEO4J_URI
+        database = config.NEO4J_DATABASE
     neo4j_service = MockNeo4jService()
 
 @router.get("/graph/ping")

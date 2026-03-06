@@ -2467,10 +2467,14 @@
                         console.log('🌙 Loading AIBI client for dark mode...');
                         setDashboardState({ loading: true, error: null, initialized: false });
 
-                        // Fetch the user's token from our backend
-                        console.log('🔑 Fetching user token from backend...');
-                        const tokenResponse = await fetch('/api/auth/token');
+                        // Fetch workspace info and token from backend
+                        console.log('🔑 Fetching workspace info and user token from backend...');
+                        const [tokenResponse, wsResponse] = await Promise.all([
+                            fetch('/api/auth/token'),
+                            fetch('/api/auth/workspace-info')
+                        ]);
                         const tokenData = await tokenResponse.json();
+                        const wsInfo = await wsResponse.json();
 
                         console.log('Token response:', {
                             authenticated: tokenData.authenticated,
@@ -2564,11 +2568,11 @@
                             throw new Error('AIBI client module failed to load after 5 seconds');
                         }
 
-                        // Configuration for the dashboard
+                        // Configuration for the dashboard (fetched dynamically from backend)
                         const config = {
-                            instanceUrl: "https://fe-vm-industry-solutions-buildathon.cloud.databricks.com",
-                            workspaceId: "237438879023004",
-                            dashboardId: "01f0ef2a97ed176dbe998b9ec4577b1b",
+                            instanceUrl: wsInfo.workspace_url,
+                            workspaceId: wsInfo.workspace_id,
+                            dashboardId: wsInfo.dashboard_id,
                             container: containerRef.current,
                             colorScheme: 'dark', // Force dark mode
                             token: tokenData.token, // Use the OAuth token from headers
@@ -2601,7 +2605,7 @@
                             console.warn('⚠️ Domain not allowed for embedding. Falling back to direct iframe...');
 
                             // Use the standard embed URL with dark theme
-                            const embedUrl = `https://fe-vm-industry-solutions-buildathon.cloud.databricks.com/embed/dashboardsv3/01f0ef2a97ed176dbe998b9ec4577b1b?o=237438879023004`;
+                            const embedUrl = `${wsInfo.workspace_url}/embed/dashboardsv3/${wsInfo.dashboard_id}?o=${wsInfo.workspace_id}`;
 
                             const iframe = document.createElement('iframe');
                             iframe.src = embedUrl;

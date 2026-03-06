@@ -11,6 +11,7 @@ from backend.models.schemas import (
     KeyMetricsModel, NetworkGraphModel, NetworkNodeModel, NetworkEdgeModel
 )
 from backend.services.database import DatabaseService
+from backend import config
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ async def get_alert_detail(alert_id: str, db: DatabaseService) -> AlertDetailMod
     """Get detailed alert information"""
     try:
         # First get the alert and customer details - using correct schema from ERD
-        query = """
+        query = f"""
         SELECT
           a.alert_id,
           a.customer_id,
@@ -73,8 +74,8 @@ async def get_alert_detail(alert_id: str, db: DatabaseService) -> AlertDetailMod
           c.risk_score,
           c.kyc_status,
           c.pep_flag
-        FROM fins_aml.data_generation.alerts a
-        JOIN fins_aml.data_generation.customers c ON a.customer_id = c.customer_id
+        FROM {config.table('alerts')} a
+        JOIN {config.table('customers')} c ON a.customer_id = c.customer_id
         WHERE CAST(a.alert_id AS STRING) = :alert_id
         """
 
@@ -91,9 +92,9 @@ async def get_alert_detail(alert_id: str, db: DatabaseService) -> AlertDetailMod
                 related_txns = row.get("related_transactions")
                 if related_txns is not None and isinstance(related_txns, (list, tuple)) and len(related_txns) > 0:
                     # Query to sum amounts from related transactions
-                    amount_query = """
+                    amount_query = f"""
                     SELECT SUM(t.amount) as total_amount
-                    FROM fins_aml.data_generation.transactions t
+                    FROM {config.table('transactions')} t
                     WHERE CAST(t.transaction_id AS STRING) IN (:transaction_ids)
                     """
 
@@ -157,7 +158,7 @@ async def get_alert_transactions(alert_id: str, db: DatabaseService) -> List[Tra
     try:
         # First try to get flagged transactions from cases.evidence_transaction_ids array
         # evidence_transaction_ids is ARRAY<BIGINT> so we need to compare with BIGINT
-        query = """
+        query = f"""
         SELECT DISTINCT
           CAST(t.transaction_id AS STRING) as transaction_id,
           t.transaction_date,
@@ -173,10 +174,10 @@ async def get_alert_transactions(alert_id: str, db: DatabaseService) -> List[Tra
               ELSE ''
             END
           ) as description
-        FROM fins_aml.data_generation.transactions t
+        FROM {config.table('transactions')} t
         WHERE EXISTS (
           SELECT 1
-          FROM fins_aml.data_generation.cases c
+          FROM {config.table('cases')} c
           WHERE CAST(c.alert_id AS STRING) = :alert_id
             AND array_contains(c.evidence_transaction_ids, t.transaction_id)
         )
@@ -188,7 +189,7 @@ async def get_alert_transactions(alert_id: str, db: DatabaseService) -> List[Tra
 
         # If no evidence transactions found, fallback to related_transactions from alerts
         if not result or len(result) == 0:
-            fallback_query = """
+            fallback_query = f"""
             SELECT DISTINCT
               CAST(t.transaction_id AS STRING) as transaction_id,
               t.transaction_date,
@@ -204,10 +205,10 @@ async def get_alert_transactions(alert_id: str, db: DatabaseService) -> List[Tra
                   ELSE ''
                 END
               ) as description
-            FROM fins_aml.data_generation.transactions t
+            FROM {config.table('transactions')} t
             WHERE EXISTS (
               SELECT 1
-              FROM fins_aml.data_generation.alerts a
+              FROM {config.table('alerts')} a
               WHERE CAST(a.alert_id AS STRING) = :alert_id
                 AND array_contains(a.related_transactions, CAST(t.transaction_id AS STRING))
             )
@@ -307,14 +308,14 @@ async def get_alert_metrics(alert_id: str, db: DatabaseService) -> KeyMetricsMod
     """Get key metrics for the alert"""
     try:
         # SQL from the handoff spec
-        query = """
+        query = f"""
         SELECT
           SUM(t.amount) as total_amount,
           COUNT(*) as transaction_count,
           DATEDIFF(MAX(t.transaction_date), MIN(t.transaction_date)) as time_window_days,
           SUM(CASE WHEN t.amount BETWEEN 9000 AND 10000 THEN 1 ELSE 0 END) as ctr_breaches
-        FROM fins_aml.data_generation.transactions t
-        JOIN fins_aml.data_generation.alerts a ON t.customer_id = a.customer_id
+        FROM {config.table('transactions')} t
+        JOIN {config.table('alerts')} a ON t.customer_id = a.customer_id
         WHERE CAST(a.alert_id AS STRING) = :alert_id
           AND t.transaction_date >= DATEADD(DAY, -30, a.created_date)
           AND t.transaction_date <= a.created_date
@@ -352,22 +353,22 @@ async def get_network_graph(customer_id: str, db: DatabaseService) -> NetworkGra
     """Get network graph data for customer"""
     try:
         # Get nodes - using the actual graph_nodes table
-        nodes_query = """
+        nodes_query = f"""
         SELECT
           CAST(node_id AS STRING) as node_id,
           node_type,
           node_label as name,
           'Medium' as risk_level
-        FROM fins_aml.data_generation.graph_nodes
+        FROM {config.table('graph_nodes')}
         WHERE CAST(node_id AS STRING) = :customer_id
            OR CAST(node_id AS STRING) IN (
              SELECT DISTINCT CAST(target_node_id AS STRING)
-             FROM fins_aml.data_generation.graph_edges
+             FROM {config.table('graph_edges')}
              WHERE CAST(source_node_id AS STRING) = :customer_id
            )
            OR CAST(node_id AS STRING) IN (
              SELECT DISTINCT CAST(source_node_id AS STRING)
-             FROM fins_aml.data_generation.graph_edges
+             FROM {config.table('graph_edges')}
              WHERE CAST(target_node_id AS STRING) = :customer_id
            )
         LIMIT 10
@@ -395,13 +396,13 @@ async def get_network_graph(customer_id: str, db: DatabaseService) -> NetworkGra
             ]
 
         # Get edges - using the actual graph_edges table
-        edges_query = """
+        edges_query = f"""
         SELECT
           CAST(source_node_id AS STRING) as source,
           CAST(target_node_id AS STRING) as target,
           edge_type as relationship_type,
           1.0 as weight
-        FROM fins_aml.data_generation.graph_edges
+        FROM {config.table('graph_edges')}
         WHERE CAST(source_node_id AS STRING) = :customer_id OR CAST(target_node_id AS STRING) = :customer_id
         LIMIT 20
         """
@@ -452,9 +453,9 @@ async def get_customer_timeline_transactions(customer_name: str, db: DatabaseSer
 
     try:
         # First, let's test if we can find the customer
-        customer_lookup_query = """
+        customer_lookup_query = f"""
         SELECT customer_id, first_name, last_name, business_name
-        FROM fins_aml.data_generation.customers
+        FROM {config.table('customers')}
         WHERE LOWER(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) = LOWER(:customer_name)
            OR LOWER(COALESCE(business_name, '')) = LOWER(:customer_name)
         LIMIT 5
@@ -467,9 +468,9 @@ async def get_customer_timeline_transactions(customer_name: str, db: DatabaseSer
             logger.warning(f"❌ No customer found with name: '{customer_name}'")
 
             # Let's also try a broader search
-            broad_search_query = """
+            broad_search_query = f"""
             SELECT customer_id, first_name, last_name, business_name
-            FROM fins_aml.data_generation.customers
+            FROM {config.table('customers')}
             WHERE LOWER(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) LIKE LOWER(:pattern)
                OR LOWER(COALESCE(business_name, '')) LIKE LOWER(:pattern)
             LIMIT 5
@@ -489,14 +490,14 @@ async def get_customer_timeline_transactions(customer_name: str, db: DatabaseSer
         logger.info(f"✅ Found customer: ID={customer_id}, Name='{customer_result[0].get('first_name', '')} {customer_result[0].get('last_name', '')}'")
 
         # Now get transactions for this customer
-        transaction_query = """
+        transaction_query = f"""
         SELECT
             t.transaction_date,
             t.amount,
             t.transaction_type,
             t.counterparty_name,
             t.transaction_id
-        FROM fins_aml.data_generation.transactions t
+        FROM {config.table('transactions')} t
         WHERE t.customer_id = :customer_id
         ORDER BY t.transaction_date DESC
         LIMIT 10
@@ -544,7 +545,7 @@ async def get_customer_timeline_transactions(customer_name: str, db: DatabaseSer
             logger.warning(f"❌ No transactions found for customer_id: {customer_id}")
 
             # Let's check if there are ANY transactions in the table
-            count_query = "SELECT COUNT(*) as total FROM fins_aml.data_generation.transactions"
+            count_query = f"SELECT COUNT(*) as total FROM {config.table('transactions')}"
             count_result = await db.execute_query(count_query)
             if count_result:
                 logger.info(f"📊 Total transactions in database: {count_result[0]['total']}")

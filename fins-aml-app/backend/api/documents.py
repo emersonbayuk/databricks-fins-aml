@@ -20,6 +20,7 @@ import aiofiles
 import random
 
 from backend.services.database import DatabaseService
+from backend import config
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -32,12 +33,7 @@ async def get_db_service() -> DatabaseService:
     return db_service
 
 # Volume paths
-VOLUMES = {
-    "edd": "/Volumes/fins_aml/data_generation/knowledge_base/edd_memos/",
-    "media": "/Volumes/fins_aml/data_generation/knowledge_base/adverse_media/",
-    "sar": "/Volumes/fins_aml/data_generation/knowledge_base/sar_narratives/",
-    "case_notes": "/Volumes/fins_aml/data_generation/knowledge_base/case_notes/"
-}
+VOLUMES = config.VOLUMES
 
 # Response Models
 class DocumentInfo(BaseModel):

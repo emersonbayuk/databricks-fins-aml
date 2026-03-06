@@ -10,6 +10,7 @@ from backend.models.schemas import (
     AnalystDashboardResponse, AnalystModel, AlertModel, AlertStatsModel
 )
 from backend.services.database import DatabaseService
+from backend import config
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ async def get_analysts(db: DatabaseService = Depends(get_db_service)):
     """Get list of analysts from v_analyst_performance view"""
     try:
         # Get all analysts and their teams from alerts table
-        query = """
+        query = f"""
         SELECT DISTINCT
           assigned_analyst,
           COALESCE(team_name,
@@ -41,7 +42,7 @@ async def get_analysts(db: DatabaseService = Depends(get_db_service)):
             END
           ) as team_name,
           'Analyst' as role
-        FROM fins_aml.data_generation.alerts
+        FROM {config.table('alerts')}
         WHERE assigned_analyst IS NOT NULL
         ORDER BY assigned_analyst
         """
@@ -88,7 +89,7 @@ async def get_alerts(
     """Get alert queue filtered by analyst and other criteria"""
     try:
         # Show ALL alerts for analyst - using correct field names from ERD
-        base_query = """
+        base_query = f"""
         SELECT
           CAST(a.alert_id AS STRING) as alert_id,
           CAST(c.customer_id AS STRING) as customer_id,
@@ -100,9 +101,9 @@ async def get_alerts(
           COALESCE(cases.case_status, a.alert_status, 'new') as alert_status,
           COALESCE(DATEDIFF(CURRENT_DATE, a.created_date), 0) as days_open,
           a.assigned_analyst
-        FROM fins_aml.data_generation.alerts a
-        LEFT JOIN fins_aml.data_generation.customers c ON a.customer_id = c.customer_id
-        LEFT JOIN fins_aml.data_generation.cases cases ON a.alert_id = cases.alert_id
+        FROM {config.table('alerts')} a
+        LEFT JOIN {config.table('customers')} c ON a.customer_id = c.customer_id
+        LEFT JOIN {config.table('cases')} cases ON a.alert_id = cases.alert_id
         WHERE 1=1
         """
 
@@ -204,13 +205,13 @@ async def get_alert_stats(
 ):
     """Get alert statistics for analyst dashboard"""
     try:
-        query = """
+        query = f"""
         SELECT
           COUNT(*) as total_alerts,
           SUM(CASE WHEN alert_status = 'new' THEN 1 ELSE 0 END) as new_alerts,
           SUM(CASE WHEN alert_status IN ('assigned', 'in_progress') THEN 1 ELSE 0 END) as in_progress_alerts,
           AVG(alert_score) as avg_score
-        FROM fins_aml.data_generation.alerts
+        FROM {config.table('alerts')}
         WHERE alert_status NOT IN ('closed')
         """
 
@@ -255,12 +256,12 @@ async def get_daily_alerts_chart(
     """Get weekly alerts data for stacked bar chart"""
     try:
         # Return clean dates - no formatting in SQL
-        query = """
+        query = f"""
         SELECT
           CAST(DATE_TRUNC('WEEK', a.created_date) AS STRING) as week_start_date,
           COALESCE(a.scenario_name, a.scenario_code, 'Other') as scenario_name,
           COUNT(*) as alert_count
-        FROM fins_aml.data_generation.alerts a
+        FROM {config.table('alerts')} a
         WHERE 1=1
         """
 

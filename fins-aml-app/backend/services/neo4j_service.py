@@ -20,11 +20,11 @@ class Neo4jService:
     """Service for interacting with Neo4j Aura graph database"""
 
     def __init__(self):
-        # Neo4j Aura connection details from environment variables
-        self.uri = os.getenv('NEO4J_URI', "neo4j+s://398dd975.databases.neo4j.io")
-        self.user = os.getenv('NEO4J_USER', "neo4j")
-        self.password = os.getenv('NEO4J_PASSWORD')
-        self.database = os.getenv('NEO4J_DATABASE', "neo4j")
+        from backend import config
+        self.uri = config.NEO4J_URI
+        self.user = config.NEO4J_USER
+        self.password = config.NEO4J_PASSWORD
+        self.database = config.NEO4J_DATABASE
         self.driver = None
 
         if not self.password:

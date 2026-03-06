@@ -16,6 +16,7 @@ import httpx
 import os
 
 from backend.services.sar_pdf_service import generate_sar_from_alert
+from backend import config
 
 logger = logging.getLogger(__name__)
 
@@ -89,10 +90,7 @@ class SARNarrativeResponse(BaseModel):
 
 
 # Multi-Agent Supervisor endpoint
-MAS_ENDPOINT = os.getenv(
-    "MAS_ENDPOINT",
-    "https://fe-vm-industry-solutions-buildathon.cloud.databricks.com/serving-endpoints/mas-e3a6f805-endpoint/invocations"
-)
+MAS_ENDPOINT = os.getenv("MAS_ENDPOINT", config.MAS_ENDPOINT_URL)
 
 
 async def call_multi_agent_supervisor(prompt: str, token: str) -> str:
@@ -194,8 +192,8 @@ async def generate_sar_narrative(request: SARGenerateRequest):
     import json
     
     try:
-        token = os.getenv("DATABRICKS_TOKEN")
-        
+        token = config.DATABRICKS_TOKEN
+
         if not token:
             logger.warning("No DATABRICKS_TOKEN available, returning default narrative")
             return SARNarrativeResponse(

@@ -11,17 +11,17 @@ from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any, AsyncGenerator
 
 from backend.models.schemas import ChatRequestModel, ChatResponseModel, ChatMessageModel
+from backend import config
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # MAS Agent endpoint configuration
-MAS_ENDPOINT_URL = os.getenv('MAS_ENDPOINT_URL',
-                            'https://fe-vm-industry-solutions-buildathon.cloud.databricks.com/serving-endpoints/mas-e3a6f805-endpoint/invocations')
+MAS_ENDPOINT_URL = config.MAS_ENDPOINT_URL
 
 async def get_agent_service():
     """Get agent service with authentication"""
-    token = os.getenv('DATABRICKS_TOKEN')
+    token = config.DATABRICKS_TOKEN
     if not token:
         raise HTTPException(status_code=503, detail="Agent authentication not configured")
     return AgentService(token)

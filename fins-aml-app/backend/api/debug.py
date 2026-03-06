@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 
 from backend.services.database import DatabaseService
+from backend import config
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -23,11 +24,11 @@ async def get_alerts_schema(db: DatabaseService = Depends(get_db_service)):
     """Get alerts table schema and sample data"""
     try:
         # Get schema
-        schema_query = "DESCRIBE fins_aml.data_generation.alerts"
+        schema_query = f"DESCRIBE {config.table('alerts')}"
         schema_result = await db.execute_query(schema_query)
 
         # Get sample data
-        sample_query = "SELECT * FROM fins_aml.data_generation.alerts LIMIT 5"
+        sample_query = f"SELECT * FROM {config.table('alerts')} LIMIT 5"
         sample_result = await db.execute_query(sample_query)
 
         return {
@@ -44,11 +45,11 @@ async def get_cases_schema(db: DatabaseService = Depends(get_db_service)):
     """Get cases table schema and sample data"""
     try:
         # Get schema
-        schema_query = "DESCRIBE fins_aml.data_generation.cases"
+        schema_query = f"DESCRIBE {config.table('cases')}"
         schema_result = await db.execute_query(schema_query)
 
         # Get sample data
-        sample_query = "SELECT * FROM fins_aml.data_generation.cases LIMIT 5"
+        sample_query = f"SELECT * FROM {config.table('cases')} LIMIT 5"
         sample_result = await db.execute_query(sample_query)
 
         return {
@@ -65,11 +66,11 @@ async def get_graph_nodes_schema(db: DatabaseService = Depends(get_db_service)):
     """Get graph_nodes table schema and sample data"""
     try:
         # Get schema
-        schema_query = "DESCRIBE fins_aml.data_generation.graph_nodes"
+        schema_query = f"DESCRIBE {config.table('graph_nodes')}"
         schema_result = await db.execute_query(schema_query)
 
         # Get sample data
-        sample_query = "SELECT * FROM fins_aml.data_generation.graph_nodes LIMIT 5"
+        sample_query = f"SELECT * FROM {config.table('graph_nodes')} LIMIT 5"
         sample_result = await db.execute_query(sample_query)
 
         return {
@@ -86,11 +87,11 @@ async def get_graph_edges_schema(db: DatabaseService = Depends(get_db_service)):
     """Get graph_edges table schema and sample data"""
     try:
         # Get schema
-        schema_query = "DESCRIBE fins_aml.data_generation.graph_edges"
+        schema_query = f"DESCRIBE {config.table('graph_edges')}"
         schema_result = await db.execute_query(schema_query)
 
         # Get sample data
-        sample_query = "SELECT * FROM fins_aml.data_generation.graph_edges LIMIT 5"
+        sample_query = f"SELECT * FROM {config.table('graph_edges')} LIMIT 5"
         sample_result = await db.execute_query(sample_query)
 
         return {
@@ -106,7 +107,7 @@ async def get_graph_edges_schema(db: DatabaseService = Depends(get_db_service)):
 async def test_simple_alerts_query(db: DatabaseService = Depends(get_db_service)):
     """Test a simple alerts query to understand structure"""
     try:
-        query = "SELECT * FROM fins_aml.data_generation.alerts LIMIT 3"
+        query = f"SELECT * FROM {config.table('alerts')} LIMIT 3"
         result = await db.execute_query(query)
 
         return {

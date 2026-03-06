@@ -22,10 +22,11 @@ _cache_timestamps = {}
 class DatabaseService:
     """Service for handling Databricks SQL connections and queries"""
 
-    def __init__(self, warehouse_id: str, token: str = None, hostname: str = "fe-vm-industry-solutions-buildathon.cloud.databricks.com"):
+    def __init__(self, warehouse_id: str, token: str = None, hostname: str = None):
+        from backend import config
         self.warehouse_id = warehouse_id
-        self.token = token or os.getenv('DATABRICKS_TOKEN') or "dummy_token"
-        self.hostname = hostname
+        self.token = token or config.DATABRICKS_TOKEN or "dummy_token"
+        self.hostname = hostname or config.DATABRICKS_HOSTNAME
         self._connection = None
         self._last_connection_time = None
         self._connection_timeout = 300  # 5 minutes

@@ -1,10 +1,12 @@
 import os
 from databricks import sql
 
+from backend import config
+
 # Test the actual schema
 def test_schema():
-    token = os.getenv('DATABRICKS_TOKEN', 'dummy')
-    warehouse_id = os.getenv('DATABRICKS_WAREHOUSE_ID', 'dummy')
+    token = config.DATABRICKS_TOKEN or 'dummy'
+    warehouse_id = config.DATABRICKS_WAREHOUSE_ID
 
     if token == 'dummy':
         print("No token available for testing")
@@ -12,7 +14,7 @@ def test_schema():
 
     try:
         with sql.connect(
-            server_hostname='fe-vm-industry-solutions-buildathon.cloud.databricks.com',
+            server_hostname=config.DATABRICKS_HOSTNAME,
             http_path=f'/sql/1.0/warehouses/{warehouse_id}',
             access_token=token
         ) as connection:
@@ -21,32 +23,32 @@ def test_schema():
 
             # Test alerts table structure
             print("=== ALERTS TABLE ===")
-            cursor.execute("DESCRIBE fins_aml.data_generation.alerts")
+            cursor.execute(f"DESCRIBE {config.table('alerts')}")
             alerts_schema = cursor.fetchall()
             for col in alerts_schema:
                 print(f"{col[0]}: {col[1]}")
 
             # Sample a few rows
             print("\n=== ALERTS SAMPLE ===")
-            cursor.execute("SELECT * FROM fins_aml.data_generation.alerts LIMIT 3")
+            cursor.execute(f"SELECT * FROM {config.table('alerts')} LIMIT 3")
             alerts_sample = cursor.fetchall()
             columns = [desc[0] for desc in cursor.description]
             print("Columns:", columns)
 
             print("\n=== CASES TABLE ===")
-            cursor.execute("DESCRIBE fins_aml.data_generation.cases")
+            cursor.execute(f"DESCRIBE {config.table('cases')}")
             cases_schema = cursor.fetchall()
             for col in cases_schema:
                 print(f"{col[0]}: {col[1]}")
 
             print("\n=== GRAPH NODES TABLE ===")
-            cursor.execute("DESCRIBE fins_aml.data_generation.graph_nodes")
+            cursor.execute(f"DESCRIBE {config.table('graph_nodes')}")
             nodes_schema = cursor.fetchall()
             for col in nodes_schema:
                 print(f"{col[0]}: {col[1]}")
 
             print("\n=== GRAPH EDGES TABLE ===")
-            cursor.execute("DESCRIBE fins_aml.data_generation.graph_edges")
+            cursor.execute(f"DESCRIBE {config.table('graph_edges')}")
             edges_schema = cursor.fetchall()
             for col in edges_schema:
                 print(f"{col[0]}: {col[1]}")

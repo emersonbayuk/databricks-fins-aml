@@ -9,6 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 
+from backend import config
+
 # Configure logging first
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -44,11 +46,10 @@ async def lifespan(app: FastAPI):
     global db_service
     try:
         # Initialize database service
-        warehouse_id = os.getenv('DATABRICKS_WAREHOUSE_ID', 'dummy_warehouse')
         db_service = DatabaseService(
-            warehouse_id=warehouse_id,
-            token=os.getenv('DATABRICKS_TOKEN'),
-            hostname='fe-vm-industry-solutions-buildathon.cloud.databricks.com'
+            warehouse_id=config.DATABRICKS_WAREHOUSE_ID,
+            token=config.DATABRICKS_TOKEN,
+            hostname=config.DATABRICKS_HOSTNAME
         )
         logger.info("Database service initialized")
         yield

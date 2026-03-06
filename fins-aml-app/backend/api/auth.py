@@ -9,12 +9,14 @@ import base64
 from fastapi import APIRouter, Request, HTTPException
 from typing import Dict, Any
 
+from backend import config
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Service principal credentials - these are provided by Databricks Apps!
-SERVICE_PRINCIPAL_ID = os.getenv('DATABRICKS_CLIENT_ID')  # Provided by Databricks Apps
-SERVICE_PRINCIPAL_SECRET = os.getenv('DATABRICKS_CLIENT_SECRET')  # Provided by Databricks Apps
+SERVICE_PRINCIPAL_ID = config.DATABRICKS_CLIENT_ID
+SERVICE_PRINCIPAL_SECRET = config.DATABRICKS_CLIENT_SECRET
 
 @router.get("/token")
 async def get_user_token(request: Request) -> Dict[str, Any]:
@@ -26,7 +28,7 @@ async def get_user_token(request: Request) -> Dict[str, Any]:
             logger.info(f"🔑 Service Principal ID: {SERVICE_PRINCIPAL_ID[:8]}...")  # Log first 8 chars for debugging
 
             # Step 1: Get base OAuth token from service principal
-            token_url = "https://fe-vm-industry-solutions-buildathon.cloud.databricks.com/oidc/v1/token"
+            token_url = f"{config.DATABRICKS_WORKSPACE_URL}/oidc/v1/token"
 
             auth_string = f"{SERVICE_PRINCIPAL_ID}:{SERVICE_PRINCIPAL_SECRET}"
             auth_header = base64.b64encode(auth_string.encode()).decode()
@@ -49,8 +51,8 @@ async def get_user_token(request: Request) -> Dict[str, Any]:
                     logger.info("✅ Got base service principal token")
 
                     # Step 2: Get scoped token for dashboard embedding
-                    dashboard_id = "01f0ef2a97ed176dbe998b9ec4577b1b"
-                    tokeninfo_url = f"https://fe-vm-industry-solutions-buildathon.cloud.databricks.com/api/2.0/lakeview/dashboards/{dashboard_id}/published/tokeninfo"
+                    dashboard_id = config.DASHBOARD_ID
+                    tokeninfo_url = f"{config.DATABRICKS_WORKSPACE_URL}/api/2.0/lakeview/dashboards/{dashboard_id}/published/tokeninfo"
 
                     # Add external viewer ID for tracking
                     tokeninfo_params = {
@@ -139,16 +141,6 @@ async def get_user_token(request: Request) -> Dict[str, Any]:
         else:
             logger.warning("⚠️ DATABRICKS_CLIENT_ID or DATABRICKS_CLIENT_SECRET not found in environment")
 
-        # Fall back to PAT token if available
-        pat_token = os.getenv('DATABRICKS_PAT_TOKEN')
-        if pat_token:
-            logger.info("📌 Using PAT token for authentication")
-            return {
-                "token": pat_token,
-                "type": "pat",
-                "authenticated": True
-            }
-
         # Fall back to user token if service principal fails
         user_token = request.headers.get('X-Forwarded-Access-Token')
 
@@ -161,13 +153,12 @@ async def get_user_token(request: Request) -> Dict[str, Any]:
                 "warning": "User token may not have embedding scopes. Configure SERVICE_PRINCIPAL_SECRET for proper embedding."
             }
 
-        # Fallback to environment token if no user token
-        env_token = os.getenv('DATABRICKS_TOKEN')
-        if env_token:
-            logger.info("⚠️ No user token found, using environment token")
+        # Fallback to PAT / environment token
+        if config.DATABRICKS_TOKEN:
+            logger.info("⚠️ No user token found, using DATABRICKS_TOKEN")
             return {
-                "token": env_token,
-                "type": "service",
+                "token": config.DATABRICKS_TOKEN,
+                "type": "pat",
                 "authenticated": True
             }
 
@@ -186,9 +177,9 @@ async def get_user_token(request: Request) -> Dict[str, Any]:
 async def get_workspace_info() -> Dict[str, Any]:
     """Get Databricks workspace information"""
     return {
-        "workspace_url": "https://fe-vm-industry-solutions-buildathon.cloud.databricks.com",
-        "workspace_id": "237438879023004",
-        "dashboard_id": "01f0ef2a97ed176dbe998b9ec4577b1b"
+        "workspace_url": config.DATABRICKS_WORKSPACE_URL,
+        "workspace_id": config.DATABRICKS_WORKSPACE_ID,
+        "dashboard_id": config.DASHBOARD_ID
     }
 
 @router.get("/debug-env")

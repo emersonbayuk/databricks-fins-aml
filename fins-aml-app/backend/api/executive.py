@@ -8,6 +8,7 @@ from typing import List
 
 from backend.models.schemas import ExecutiveDashboardResponse, KPIModel, TeamPerformanceModel, SankeyDataModel
 from backend.services.database import DatabaseService
+from backend import config
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -46,21 +47,21 @@ async def get_executive_kpis(db: DatabaseService) -> List[KPIModel]:
     """Get executive KPI data from v_executive_kpis view and cases table"""
     try:
         # Query the metrics directly instead of using the view (which has a days_in_queue error)
-        kpi_query = """
+        kpi_query = f"""
         SELECT
             COUNT(*) as total_alerts,
             SUM(CASE WHEN c.case_status = 'closed_no_action' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) as false_positive_rate_pct,
             SUM(CASE WHEN s.sar_id IS NOT NULL THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0) as sar_conversion_rate_pct
-        FROM fins_aml.data_generation.alerts a
-        LEFT JOIN fins_aml.data_generation.cases c ON a.alert_id = c.alert_id
-        LEFT JOIN fins_aml.data_generation.sar_filings s ON c.case_id = s.case_id
+        FROM {config.table('alerts')} a
+        LEFT JOIN {config.table('cases')} c ON a.alert_id = c.alert_id
+        LEFT JOIN {config.table('sar_filings')} s ON c.case_id = s.case_id
         WHERE DATE(a.created_date) = CURRENT_DATE() OR DATE(a.created_date) >= DATE_SUB(CURRENT_DATE(), 30)
         """
 
         # Query for average investigation time from cases table
-        avg_time_query = """
+        avg_time_query = f"""
         SELECT AVG(investigation_time_hours) as avg_investigation_time
-        FROM fins_aml.data_generation.cases
+        FROM {config.table('cases')}
         WHERE investigation_time_hours IS NOT NULL
         """
 
@@ -126,15 +127,15 @@ async def get_team_performance(db: DatabaseService) -> List[TeamPerformanceModel
     """Get team performance data from v_analyst_performance view"""
     try:
         # Query analyst data from alerts and cases tables directly
-        query = """
+        query = f"""
         SELECT
           a.assigned_analyst as analyst_name,
           AVG(CASE WHEN c.investigation_time_hours IS NOT NULL THEN c.investigation_time_hours ELSE 2.1 END) as avg_investigation_hours,
           COUNT(CASE WHEN c.case_status IN ('closed_no_action', 'sar_filed') THEN 1 END) as closed_count,
           COUNT(CASE WHEN c.case_status = 'sar_filed' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0) as sar_rate_pct,
           COUNT(*) as total_assigned
-        FROM fins_aml.data_generation.alerts a
-        LEFT JOIN fins_aml.data_generation.cases c ON a.alert_id = c.alert_id
+        FROM {config.table('alerts')} a
+        LEFT JOIN {config.table('cases')} c ON a.alert_id = c.alert_id
         WHERE a.assigned_analyst IS NOT NULL
         GROUP BY a.assigned_analyst
         ORDER BY a.assigned_analyst
@@ -207,7 +208,7 @@ async def get_sankey_data(db: DatabaseService) -> List[SankeyDataModel]:
     """Get Sankey diagram data - scenario to analyst to status flow"""
     try:
         # Query for 3-level flow: Scenario -> Analyst -> Status
-        query = """
+        query = f"""
         SELECT
           a.scenario_name,
           COALESCE(a.assigned_analyst, 'Unassigned') as team,
@@ -216,8 +217,8 @@ async def get_sankey_data(db: DatabaseService) -> List[SankeyDataModel]:
             ELSE 'Open'
           END as status,
           COUNT(*) as case_count
-        FROM fins_aml.data_generation.alerts a
-        LEFT JOIN fins_aml.data_generation.cases c ON a.alert_id = c.alert_id
+        FROM {config.table('alerts')} a
+        LEFT JOIN {config.table('cases')} c ON a.alert_id = c.alert_id
         WHERE a.scenario_name IS NOT NULL
         GROUP BY a.scenario_name, team, status
         HAVING case_count > 0
@@ -277,7 +278,7 @@ async def test_database_connection(db: DatabaseService = Depends(get_db_service)
             raise HTTPException(status_code=503, detail="Database connection failed")
 
         # Try to query one of our tables
-        query = "SELECT COUNT(*) as count FROM fins_aml.data_generation.alerts"
+        query = f"SELECT COUNT(*) as count FROM {config.table('alerts')}"
         result = await db.execute_query(query, cache_ttl=300)
 
         return {
@@ -295,12 +296,12 @@ async def get_investigation_time_details(db: DatabaseService = Depends(get_db_se
     """Get detailed investigation time breakdown by analyst"""
     try:
         # Query analyst performance data for investigation time popup
-        query = """
+        query = f"""
         SELECT
           a.assigned_analyst as analyst_name,
           AVG(CASE WHEN c.investigation_time_hours IS NOT NULL THEN c.investigation_time_hours ELSE 2.1 END) as avg_investigation_hours
-        FROM fins_aml.data_generation.alerts a
-        LEFT JOIN fins_aml.data_generation.cases c ON a.alert_id = c.alert_id
+        FROM {config.table('alerts')} a
+        LEFT JOIN {config.table('cases')} c ON a.alert_id = c.alert_id
         WHERE a.assigned_analyst IS NOT NULL
         GROUP BY a.assigned_analyst
         ORDER BY avg_investigation_hours DESC
