@@ -2446,7 +2446,7 @@
             );
         };
 
-        // Executive Dashboard Component - Simple iframe with Genie support
+        // Executive Dashboard Component - Simple iframe with Genie + Dark Mode support
         const ExecutiveDashboard = ({ dashboardData }) => {
             const [wsInfo, setWsInfo] = React.useState(null);
             const [loading, setLoading] = React.useState(true);
@@ -2504,14 +2504,14 @@
                                     Loading Dashboard
                                 </p>
                                 <p style={{ color: colors.text.secondary, fontSize: '0.9rem' }}>
-                                    🎯 With Genie support enabled!
+                                    With Genie support enabled!
                                 </p>
                             </div>
                         )}
 
                         {wsInfo && !loading && (
                             <iframe
-                                src={`${wsInfo.workspace_url}/embed/dashboardsv3/${wsInfo.dashboard_id}?o=${wsInfo.workspace_id}`}
+                                src={`${wsInfo.workspace_url}/embed/dashboardsv3/${wsInfo.dashboard_id}?o=${wsInfo.workspace_id}&theme=dark`}
                                 style={{
                                     width: '100%',
                                     height: '100%',
@@ -2526,7 +2526,6 @@
                 </div>
             );
         };
-
 
         // Original Executive Dashboard - PRESERVED FOR ROLLBACK
         // To rollback: Comment out the new dashboard above and uncomment this one

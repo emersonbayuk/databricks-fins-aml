@@ -13,20 +13,20 @@ resources:
   - name: sql_warehouse
     type: sql_warehouse
     permission: CAN_USE
-  - name: serving_endpoint
-    type: serving_endpoint
+  - name: serving.serving-endpoints
     permission: CAN_QUERY
 
 env:
-  # Databricks Apps automatically provides these when resources are declared:
-  # - DATABRICKS_HOST (workspace URL)
-  # - DATABRICKS_TOKEN (authentication token with permissions for declared resources)
-  # - sql_warehouse resource ID gets injected as DATABRICKS_WAREHOUSE_ID
-
+  # Resource-bound values (resolved by Databricks Apps runtime)
   - name: 'DATABRICKS_WAREHOUSE_ID'
     valueFrom: sql_warehouse
+  - name: 'DATABRICKS_TOKEN'
+    valueFrom: secret
+  - name: 'NEO4J_PASSWORD'
+    valueFrom: secret-2
 
-  # These need to be explicitly set for your app logic
+  # Per-target values — update these when switching targets
+  # (must match the active target in databricks.yml)
   - name: 'DATABRICKS_HOSTNAME'
     value: 'e2-demo-west.cloud.databricks.com'
   - name: 'DATABRICKS_WORKSPACE_ID'
@@ -39,3 +39,9 @@ env:
     value: 'fincrime'
   - name: 'MAS_ENDPOINT_URL'
     value: 'https://e2-demo-west.cloud.databricks.com/serving-endpoints/mas-be073cf6-endpoint/invocations'
+  - name: 'NEO4J_URI'
+    value: 'neo4j+s://398dd975.databases.neo4j.io'
+  - name: 'NEO4J_USER'
+    value: 'neo4j'
+  - name: 'NEO4J_DATABASE'
+    value: 'neo4j'
