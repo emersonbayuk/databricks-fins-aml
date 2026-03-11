@@ -37,7 +37,8 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts@2/lib/index.js"></script>
+    <script src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
     <script src="https://unpkg.com/marked@5.1.1/marked.min.js"></script>
     <!-- AIBI Client will be loaded dynamically as ES module -->
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
@@ -54,13 +55,45 @@
             }
         });
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #0f1419;
             color: #f4f4f5;
-            line-height: 1.5;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Smooth transitions for all interactive elements */
+        button, select, a {
+            transition: all 0.2s ease;
+        }
+        button:hover {
+            filter: brightness(1.1);
+        }
+        /* Focus states for keyboard nav (a11y) */
+        button:focus-visible, select:focus-visible, a:focus-visible {
+            outline: 2px solid #5FA8D3;
+            outline-offset: 2px;
+        }
+        /* Scrollbar styling for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1B1F23;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3C444C;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5FA8D3;
         }
         .loading {
             display: flex;
@@ -167,6 +200,27 @@
             0%, 20% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
             80%, 100% { transform: translateY(0); }
+        }
+        /* Respect reduced motion preference (a11y) */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        /* Tabular figures for data-heavy content */
+        td, th {
+            font-variant-numeric: tabular-nums;
+        }
+        /* Improve select element styling */
+        select {
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2397A7B3' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2rem !important;
         }
     </style>
 </head>
@@ -491,12 +545,17 @@
         const Header = ({ activeTab, onTabChange, selectedAnalyst, onAnalystChange, analysts, onGoHome }) => {
             return (
                 <div style={{
-                    background: colors.bg.secondary,
+                    background: 'rgba(42, 47, 53, 0.85)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
                     borderBottom: `1px solid ${colors.border.subtle}`,
-                    padding: '1rem 2rem',
+                    padding: '0.75rem 2rem',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 100
                 }}>
                     {/* Logo and Title */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -531,18 +590,27 @@
                         </span>
                     </div>
 
-                    {/* Navigation Tabs */}
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {/* Navigation Tabs - positioned absolutely to stay centered */}
+                    <div style={{
+                        position: 'absolute',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        display: 'flex',
+                        gap: '0.5rem'
+                    }}>
                         <button
                             onClick={() => onTabChange('executive')}
                             style={{
                                 background: activeTab === 'executive' ? colors.accent.blue : 'transparent',
                                 color: activeTab === 'executive' ? 'white' : colors.text.secondary,
-                                border: `1px solid ${colors.border.default}`,
-                                padding: '0.75rem 1.5rem',
-                                borderRadius: '8px',
+                                border: `1px solid ${activeTab === 'executive' ? colors.accent.blue : colors.border.default}`,
+                                padding: '0.5rem 1.25rem',
+                                borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: '0.9rem'
+                                fontSize: '0.875rem',
+                                fontWeight: activeTab === 'executive' ? '600' : '400',
+                                letterSpacing: '-0.01em',
+                                transition: 'all 0.2s ease'
                             }}
                         >
                             Executive Overview
@@ -552,11 +620,14 @@
                             style={{
                                 background: activeTab === 'analyst' ? colors.accent.blue : 'transparent',
                                 color: activeTab === 'analyst' ? 'white' : colors.text.secondary,
-                                border: `1px solid ${colors.border.default}`,
-                                padding: '0.75rem 1.5rem',
-                                borderRadius: '8px',
+                                border: `1px solid ${activeTab === 'analyst' ? colors.accent.blue : colors.border.default}`,
+                                padding: '0.5rem 1.25rem',
+                                borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: '0.9rem'
+                                fontSize: '0.875rem',
+                                fontWeight: activeTab === 'analyst' ? '600' : '400',
+                                letterSpacing: '-0.01em',
+                                transition: 'all 0.2s ease'
                             }}
                         >
                             Alert Investigation
@@ -565,30 +636,32 @@
 
                     {/* User Info + Analyst Selector (only on My Queue) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        {activeTab === 'analyst' && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>View As:</span>
-                                <select
-                                    value={selectedAnalyst}
-                                    onChange={(e) => onAnalystChange(e.target.value)}
-                                    style={{
-                                        background: colors.bg.tertiary,
-                                        color: colors.text.primary,
-                                        border: `1px solid ${colors.border.default}`,
-                                        padding: '0.5rem 1rem',
-                                        borderRadius: '6px',
-                                        fontSize: '0.875rem'
-                                    }}
-                                >
-                                    {analysts.map(analyst => (
-                                        <option key={analyst.analyst_name} value={analyst.analyst_name}>
-                                            {analyst.analyst_name} ({analyst.team_name})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            visibility: activeTab === 'analyst' ? 'visible' : 'hidden'
+                        }}>
+                            <span style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>View As:</span>
+                            <select
+                                value={selectedAnalyst}
+                                onChange={(e) => onAnalystChange(e.target.value)}
+                                style={{
+                                    background: colors.bg.tertiary,
+                                    color: colors.text.primary,
+                                    border: `1px solid ${colors.border.default}`,
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.875rem'
+                                }}
+                            >
+                                {analysts.map(analyst => (
+                                    <option key={analyst.analyst_name} value={analyst.analyst_name}>
+                                        {analyst.analyst_name} ({analyst.team_name})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
             );
@@ -838,20 +911,21 @@
         const DailyAlertsChart = ({ selectedAnalyst }) => {
             const [chartData, setChartData] = React.useState([]);
             const [loading, setLoading] = React.useState(true);
+            const [scenarios, setScenarios] = React.useState([]);
 
-            // Define all possible scenarios with their colors (at component level)
-            const scenarioColors = [
-                { key: 'Cash Structuring Detection', color: colors.scenarios.cashStructuring },
-                { key: 'Rapid Fund Movement', color: colors.scenarios.rapidFunds },
-                { key: 'Dormant Account Reactivation', color: colors.scenarios.dormantReactivation },
-                { key: 'Related Account Movement', color: colors.scenarios.relatedAccounts },
-                { key: 'Round Dollar Pattern', color: colors.scenarios.roundDollar },
-                { key: 'High-Risk Geographic', color: colors.scenarios.highRiskGeo },
-                { key: 'PEP/Sanctions', color: colors.scenarios.pepSanctions },
-                { key: 'Third-Party Deposits', color: colors.scenarios.thirdParty },
-                { key: 'Beneficiary Mismatch', color: colors.scenarios.beneficiaryMismatch },
-                { key: 'Other', color: colors.text.muted } // Using muted color for Other
-            ];
+            // Scenario color map
+            const scenarioColorMap = {
+                'Cash Structuring Detection': colors.scenarios.cashStructuring,
+                'Rapid Fund Movement': colors.scenarios.rapidFunds,
+                'Dormant Account Reactivation': colors.scenarios.dormantReactivation,
+                'Related Account Movement': colors.scenarios.relatedAccounts,
+                'Round Dollar Pattern': colors.scenarios.roundDollar,
+                'High-Risk Geographic': colors.scenarios.highRiskGeo,
+                'PEP/Sanctions': colors.scenarios.pepSanctions,
+                'Third-Party Deposits': colors.scenarios.thirdParty,
+                'Beneficiary Mismatch': colors.scenarios.beneficiaryMismatch,
+                'Other': colors.text.muted
+            };
 
             // Fetch real chart data
             React.useEffect(() => {
@@ -867,54 +941,37 @@
                         const data = await response.json();
 
                         if (data.chart_data) {
-                            // New data structure: [{week_start, scenario, count}, ...]
                             const apiData = data.chart_data;
+                            const uniqueWeeks = [...new Set(apiData.map(item => item.week_start))].sort();
+                            const uniqueScenarios = [...new Set(apiData.map(item => item.scenario))];
 
-                            // 1. Get unique weeks for the X-Axis labels
-                            const uniqueWeeks = [...new Set(apiData.map(item => item.week_start))];
-                            const labels = uniqueWeeks.sort();
-
-                            // 2. Format dates for display
                             const formatDateLabel = (dateString) => {
                                 const date = new Date(dateString);
                                 return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
                             };
 
-                            // 3. Construct the datasets by pivoting the data
-                            const scenarios = [...new Set(apiData.map(item => item.scenario))];
-
-                            // Create transformed data for existing chart component
-                            const transformedData = labels.map(week => {
-                                const weekData = {
-                                    date: formatDateLabel(week),
-                                    total: 0
-                                };
-
-                                // Initialize all scenario counts to 0
-                                scenarios.forEach(scenario => {
-                                    weekData[scenario] = 0;
-                                });
-
-                                // Fill in actual counts for this week
+                            const transformed = uniqueWeeks.map(week => {
+                                const weekData = { date: formatDateLabel(week), total: 0 };
+                                uniqueScenarios.forEach(s => { weekData[s] = 0; });
                                 apiData.forEach(record => {
                                     if (record.week_start === week) {
                                         weekData[record.scenario] = record.count;
                                         weekData.total += record.count;
                                     }
                                 });
-
                                 return weekData;
                             });
 
-                            setChartData(transformedData);
+                            setChartData(transformed);
+                            setScenarios(uniqueScenarios);
                         }
                     } catch (error) {
                         console.error('Failed to fetch chart data:', error);
-                        // Fallback to mock data on error
                         setChartData([
-                            { date: '01-01', 'Cash Structuring Detection': 12, 'Rapid Fund Movement': 8, 'Dormant Account Reactivation': 6, 'Related Account Movement': 4, 'Round Dollar Pattern': 7, total: 37 },
-                            { date: '01-02', 'Cash Structuring Detection': 10, 'Rapid Fund Movement': 9, 'Dormant Account Reactivation': 7, 'Related Account Movement': 5, 'Round Dollar Pattern': 8, total: 39 }
+                            { date: '01-01', 'Cash Structuring Detection': 12, 'Rapid Fund Movement': 8, 'Dormant Account Reactivation': 6, total: 26 },
+                            { date: '01-02', 'Cash Structuring Detection': 10, 'Rapid Fund Movement': 9, 'Dormant Account Reactivation': 7, total: 26 }
                         ]);
+                        setScenarios(['Cash Structuring Detection', 'Rapid Fund Movement', 'Dormant Account Reactivation']);
                     } finally {
                         setLoading(false);
                     }
@@ -922,6 +979,83 @@
 
                 fetchChartData();
             }, [selectedAnalyst]);
+
+            // Recharts components
+            const { ResponsiveContainer: RC, BarChart, Bar, XAxis: BXAxis, YAxis: BYAxis, CartesianGrid: BGrid, Tooltip: BTooltip, Legend } = window.Recharts || {};
+
+            // Custom tooltip for the bar chart
+            const CustomBarTooltip = ({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                    const total = payload.reduce((sum, p) => sum + (p.value || 0), 0);
+                    return (
+                        <div style={{
+                            background: colors.bg.primary,
+                            border: `1px solid ${colors.border.subtle}`,
+                            borderRadius: '8px',
+                            padding: '0.75rem',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            minWidth: '180px'
+                        }}>
+                            <p style={{ margin: '0 0 0.5rem', color: colors.text.primary, fontSize: '0.8rem', fontWeight: '600' }}>
+                                {label}
+                            </p>
+                            {payload.filter(p => p.value > 0).map((p, i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: p.fill }} />
+                                        <span style={{ color: colors.text.secondary, fontSize: '0.75rem' }}>{p.dataKey}</span>
+                                    </div>
+                                    <span style={{ color: colors.text.primary, fontSize: '0.75rem', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }}>{p.value}</span>
+                                </div>
+                            ))}
+                            <div style={{ borderTop: `1px solid ${colors.border.subtle}`, marginTop: '0.5rem', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: colors.text.secondary, fontSize: '0.75rem' }}>Total</span>
+                                <span style={{ color: colors.text.primary, fontSize: '0.8rem', fontWeight: '700' }}>{total}</span>
+                            </div>
+                        </div>
+                    );
+                }
+                return null;
+            };
+
+            // Custom legend
+            const renderLegend = () => {
+                const activeScenarios = scenarios.filter(s =>
+                    chartData.some(day => (day[s] || 0) > 0)
+                );
+
+                return (
+                    <div style={{
+                        display: 'flex',
+                        gap: '1.5rem',
+                        marginTop: '1rem',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                        background: colors.bg.tertiary,
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border.subtle}`
+                    }}>
+                        {activeScenarios.map(scenario => {
+                            const totalCount = chartData.reduce((sum, day) => sum + (day[scenario] || 0), 0);
+                            return (
+                                <div key={scenario} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem' }}>
+                                    <div style={{
+                                        width: '14px',
+                                        height: '14px',
+                                        background: scenarioColorMap[scenario] || colors.text.muted,
+                                        borderRadius: '3px'
+                                    }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ color: colors.text.primary, fontSize: '0.8rem', fontWeight: '500' }}>{scenario}</span>
+                                        <span style={{ color: colors.text.secondary, fontSize: '0.7rem' }}>{totalCount} total</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            };
 
             return (
                 <div style={{
@@ -935,7 +1069,7 @@
                         Daily Alerts by Scenario - {selectedAnalyst || 'All Analysts'}
                     </h3>
 
-                    {loading ? (
+                    {loading || !RC ? (
                         <div style={{
                             display: 'flex',
                             justifyContent: 'center',
@@ -947,248 +1081,85 @@
                         </div>
                     ) : (
                         <>
-                            {/* Stacked bar chart visualization - full width */}
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'end',
-                                justifyContent: 'space-between',
-                                height: '320px',
-                                padding: '0 2rem',
-                                width: '100%'
-                            }}>
-                                {chartData.map((day, index) => {
-                                    const maxHeight = 280;  // Increased height
-                                    const maxTotal = Math.max(...chartData.map(d => d.total), 10); // Better scaling
-                                    const barHeight = (day.total / maxTotal) * maxHeight;
-
-                                    return (
-                                        <div key={index} style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            flex: '1',
-                                            maxWidth: '140px',
-                                            padding: '0 0.5rem'
-                                        }}>
-                                            {/* Stacked Bar */}
-                                            <div style={{
-                                                position: 'relative',
-                                                height: `${barHeight}px`,
-                                                width: '100%',
-                                                minWidth: '40px',
-                                                borderRadius: '6px 6px 0 0',
-                                                overflow: 'hidden',
-                                                background: colors.bg.tertiary,
-                                                marginBottom: '0.5rem',
-                                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                border: `1px solid ${colors.border.subtle}`
-                                            }}>
-                                                {(() => {
-                                                    let accumulatedHeight = 0;
-                                                    return scenarioColors.map((scenario) => {
-                                                        const count = day[scenario.key] || 0;
-                                                        if (count === 0) return null;
-
-                                                        const segmentHeight = (count / day.total) * barHeight;
-                                                        const bottomPosition = accumulatedHeight;
-                                                        accumulatedHeight += segmentHeight;
-
-                                                        return (
-                                                            <div
-                                                                key={scenario.key}
-                                                                style={{
-                                                                    position: 'absolute',
-                                                                    bottom: `${bottomPosition}px`,
-                                                                    left: 0,
-                                                                    right: 0,
-                                                                    height: `${segmentHeight}px`,
-                                                                    background: scenario.color,
-                                                                    transition: 'all 0.3s ease',
-                                                                    cursor: 'pointer',
-                                                                    borderTop: bottomPosition > 0 ? `1px solid rgba(255,255,255,0.1)` : 'none'
-                                                                }}
-                                                                title={`${scenario.key}: ${count} alerts`}
-                                                                onMouseEnter={(e) => {
-                                                                    e.target.style.opacity = '0.8';
-                                                                    e.target.style.zIndex = '10';
-                                                                }}
-                                                                onMouseLeave={(e) => {
-                                                                    e.target.style.opacity = '1';
-                                                                    e.target.style.zIndex = 'auto';
-                                                                }}
-                                                            >
-                                                                {/* Show count if segment is large enough */}
-                                                                {segmentHeight > 20 && (
-                                                                    <span style={{
-                                                                        position: 'absolute',
-                                                                        top: '50%',
-                                                                        left: '50%',
-                                                                        transform: 'translate(-50%, -50%)',
-                                                                        color: 'white',
-                                                                        fontSize: '0.7rem',
-                                                                        fontWeight: 'bold',
-                                                                        textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                                                                        pointerEvents: 'none'
-                                                                    }}>
-                                                                        {count}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    });
-                                                })()}
-                                            </div>
-                                            {/* Labels */}
-                                            <div style={{
-                                                fontSize: '0.75rem',
-                                                color: colors.text.secondary,
-                                                textAlign: 'center',
-                                                wordWrap: 'break-word',
-                                                maxWidth: '100%'
-                                            }}>
-                                                <div style={{ fontSize: '0.7rem', fontWeight: '500' }}>{day.date}</div>
-                                                <div style={{
-                                                    color: colors.text.primary,
-                                                    fontWeight: '700',
-                                                    fontSize: '0.9rem',
-                                                    marginTop: '0.25rem'
-                                                }}>
-                                                    {day.total}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                            <div style={{ width: '100%', height: '350px' }}>
+                                <RC width="100%" height="100%">
+                                    <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }} barCategoryGap="20%">
+                                        <BGrid strokeDasharray="3 6" stroke={colors.border.subtle} opacity={0.3} vertical={false} />
+                                        <BXAxis
+                                            dataKey="date"
+                                            tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                                            tickLine={false}
+                                            axisLine={{ stroke: colors.border.subtle }}
+                                            dy={4}
+                                        />
+                                        <BYAxis
+                                            tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            width={35}
+                                            allowDecimals={false}
+                                        />
+                                        <BTooltip content={<CustomBarTooltip />} cursor={{ fill: colors.bg.tertiary, opacity: 0.5 }} />
+                                        {scenarios.map(scenario => (
+                                            <Bar
+                                                key={scenario}
+                                                dataKey={scenario}
+                                                stackId="alerts"
+                                                fill={scenarioColorMap[scenario] || colors.text.muted}
+                                                radius={scenarios.indexOf(scenario) === scenarios.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                                            />
+                                        ))}
+                                    </BarChart>
+                                </RC>
                             </div>
-
-                            {/* Enhanced Legend */}
-                            <div style={{
-                                display: 'flex',
-                                gap: '1.5rem',
-                                marginTop: '1.5rem',
-                                flexWrap: 'wrap',
-                                justifyContent: 'center',
-                                padding: '1rem',
-                                background: colors.bg.tertiary,
-                                borderRadius: '8px',
-                                border: `1px solid ${colors.border.subtle}`
-                            }}>
-                                {scenarioColors
-                                    .filter(scenario => {
-                                        // Only show scenarios that have data
-                                        return chartData.some(day => (day[scenario.key] || 0) > 0);
-                                    })
-                                    .map((scenario) => {
-                                        const totalCount = chartData.reduce((sum, day) => sum + (day[scenario.key] || 0), 0);
-                                        return (
-                                            <div key={scenario.key} style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem',
-                                                padding: '0.25rem 0.5rem',
-                                                borderRadius: '4px',
-                                                transition: 'background 0.2s',
-                                                cursor: 'pointer'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.background = colors.bg.secondary;
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.background = 'transparent';
-                                            }}>
-                                                <div style={{
-                                                    width: '16px',
-                                                    height: '16px',
-                                                    background: scenario.color,
-                                                    borderRadius: '3px',
-                                                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                                                }} />
-                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span style={{ color: colors.text.primary, fontSize: '0.8rem', fontWeight: '500' }}>
-                                                        {scenario.key}
-                                                    </span>
-                                                    <span style={{ color: colors.text.secondary, fontSize: '0.7rem' }}>
-                                                        {totalCount} total
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                            </div>
+                            {renderLegend()}
                         </>
                     )}
                 </div>
             );
         };
 
-        // Transaction Timeline Component - Polished Version
+        // Recharts components (loaded via UMD global)
+        const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip: RechartsTooltip } = window.Recharts || {};
+
         const TransactionTimeline = ({ alert }) => {
             const [transactions, setTransactions] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [hoveredPoint, setHoveredPoint] = useState(null);
-            const containerRef = useRef(null);
-            const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
-            // Track container dimensions
-            useEffect(() => {
-                const updateDimensions = () => {
-                    if (containerRef.current) {
-                        const rect = containerRef.current.getBoundingClientRect();
-                        setDimensions({
-                            width: rect.width - 48, // Subtract padding
-                            height: rect.height - 120 // Subtract header and padding
-                        });
-                    }
-                };
-                updateDimensions();
-                window.addEventListener('resize', updateDimensions);
-                return () => window.removeEventListener('resize', updateDimensions);
-            }, []);
 
             // Fetch real transaction data
             useEffect(() => {
                 const fetchTransactions = async () => {
-                    console.log('🔍 TransactionTimeline: Starting fetch, alert=', alert);
-                    console.log('🔍 alert.customer_name=', alert?.customer_name);
-
                     if (!alert?.customer_name) {
-                        console.log('❌ No customer name found in alert, skipping fetch');
                         setLoading(false);
                         return;
                     }
 
                     const url = `/api/investigation/customer-transactions/${encodeURIComponent(alert.customer_name)}`;
-                    console.log('🚀 Making API call to:', url);
 
                     try {
                         setLoading(true);
                         const response = await fetch(url);
-                        console.log('📡 API Response status:', response.status, response.statusText);
 
                         if (response.ok) {
                             const data = await response.json();
-                            console.log('📊 API Response data:', data);
 
                             if (data.transactions && data.transactions.length > 0) {
-                                // Sort by date (already in mm-dd-yyyy format from API)
                                 const sorted = data.transactions.sort((a, b) => {
-                                    // Convert mm-dd-yyyy to Date for sorting
                                     const dateA = new Date(a.date);
                                     const dateB = new Date(b.date);
                                     return dateA - dateB;
                                 });
-                                setTransactions(sorted);
-                                console.log(`✅ SUCCESS: Loaded ${sorted.length} real transactions from database for timeline:`, sorted);
+                                // Take last 30 transactions
+                                const last30 = sorted.slice(-30);
+                                setTransactions(last30);
                             } else {
-                                console.log('❌ Empty response, using demo data');
                                 setTransactions(generateDemoTransactions());
                             }
                         } else {
-                            console.log(`❌ API call failed with status ${response.status}, using demo data`);
                             setTransactions(generateDemoTransactions());
                         }
                     } catch (err) {
-                        console.error('❌ CRITICAL ERROR fetching transactions:', err);
+                        console.error('Error fetching transactions:', err);
                         setTransactions(generateDemoTransactions());
                     } finally {
                         setLoading(false);
@@ -1198,21 +1169,74 @@
                 fetchTransactions();
             }, [alert]);
 
-            // Generate demo transactions as fallback
+            // Generate 30 demo transactions as fallback
             const generateDemoTransactions = () => {
-                const dates = [];
-                for (let i = 0; i < 12; i++) {
+                const txns = [];
+                for (let i = 29; i >= 0; i--) {
                     const date = new Date();
-                    date.setDate(date.getDate() - i * 2);
-                    dates.push({
+                    date.setDate(date.getDate() - i);
+                    txns.push({
                         date: date.toISOString().split('T')[0],
                         amount: Math.random() * 50000 + 5000,
                         type: ['WIRE_TRANSFER', 'ACH_TRANSFER', 'CASH_DEPOSIT'][Math.floor(Math.random() * 3)],
                         direction: Math.random() > 0.5 ? 'sent' : 'received',
-                        counterparty: `Entity ${i + 1}`
+                        counterparty: `Entity ${30 - i}`
                     });
                 }
-                return dates.reverse();
+                return txns;
+            };
+
+            // Format data for Recharts
+            const chartData = transactions.map(txn => {
+                let displayDate;
+                if (txn.date && txn.date.includes('-') && txn.date.split('-').length === 3) {
+                    const parts = txn.date.split('-');
+                    // Handle both yyyy-mm-dd and mm-dd-yyyy formats
+                    if (parts[0].length === 4) {
+                        displayDate = `${parts[1]}/${parts[2]}`;
+                    } else {
+                        displayDate = `${parts[0]}/${parts[1]}`;
+                    }
+                } else {
+                    const date = new Date(txn.date);
+                    displayDate = `${date.getMonth() + 1}/${date.getDate()}`;
+                }
+
+                return {
+                    date: displayDate,
+                    amount: Math.abs(txn.amount),
+                    type: txn.type,
+                    counterparty: txn.counterparty || '-',
+                    rawDate: txn.date
+                };
+            });
+
+            // Custom tooltip
+            const CustomTooltip = ({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                        <div style={{
+                            background: colors.bg.primary,
+                            border: `1px solid ${colors.border.subtle}`,
+                            borderRadius: '8px',
+                            padding: '0.75rem',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            minWidth: '160px'
+                        }}>
+                            <p style={{ margin: '0 0 0.25rem', color: colors.text.secondary, fontSize: '0.75rem' }}>
+                                {data.rawDate}
+                            </p>
+                            <p style={{ margin: '0 0 0.25rem', color: colors.accent.blue, fontSize: '1rem', fontWeight: '700', fontVariantNumeric: 'tabular-nums' }}>
+                                ${data.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            <p style={{ margin: 0, color: colors.text.muted, fontSize: '0.75rem' }}>
+                                {data.type.replace(/_/g, ' ')}
+                            </p>
+                        </div>
+                    );
+                }
+                return null;
             };
 
             if (loading) {
@@ -1233,36 +1257,10 @@
                 );
             }
 
-            // Calculate chart values
-            const amounts = transactions.map(txn => Math.abs(txn.amount));
-            const maxAmount = Math.max(...amounts, 10000);
-            const minAmount = Math.min(...amounts, 0);
-            const range = maxAmount - minAmount;
-
-            // Format dollar value
-            const formatDollar = (value) => {
-                return `$${(value / 1000).toFixed(0)}K`;
-            };
-
-            // Calculate Y-axis ticks
-            const yAxisTicks = [];
-            const tickCount = 5;
-            for (let i = 0; i <= tickCount; i++) {
-                yAxisTicks.push(minAmount + (range * i / tickCount));
-            }
-
-            // Pre-calculate all coordinates for consistent use
-            const dataPoints = transactions.map((txn, i) => {
-                const padding = 5; // Add padding percentage
-                const x = padding + (i / (transactions.length - 1)) * (100 - 2 * padding);
-                const y = padding + (1 - (Math.abs(txn.amount) - minAmount) / range) * (100 - 2 * padding);
-                return { x, y, txn, index: i };
-            });
-
-            return (
-                <div
-                    ref={containerRef}
-                    style={{
+            // Fallback if Recharts didn't load
+            if (!ResponsiveContainer) {
+                return (
+                    <div style={{
                         background: colors.bg.secondary,
                         borderRadius: '12px',
                         border: `1px solid ${colors.border.subtle}`,
@@ -1270,173 +1268,86 @@
                         height: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        position: 'relative'
-                    }}
-                >
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                    }}>
+                        <h4 style={{ color: colors.text.secondary }}>Chart library loading...</h4>
+                    </div>
+                );
+            }
+
+            return (
+                <div style={{
+                    background: colors.bg.secondary,
+                    borderRadius: '12px',
+                    border: `1px solid ${colors.border.subtle}`,
+                    padding: '1.5rem',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    minHeight: '350px'
+                }}>
                     {/* Header */}
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        marginBottom: '1rem'
+                        marginBottom: '1rem',
+                        flexShrink: 0
                     }}>
-                        <h4 style={{ margin: 0, color: colors.text.primary }}>Transaction Timeline</h4>
+                        <h4 style={{ margin: 0, color: colors.text.primary, letterSpacing: '-0.01em' }}>Transaction Timeline</h4>
                         <div style={{ fontSize: '0.75rem', color: colors.text.secondary }}>
-                            {transactions.length} transactions
+                            Last {chartData.length} transactions
                         </div>
                     </div>
 
-                    {transactions.length > 0 ? (
-                        <div style={{
-                            flex: 1,
-                            position: 'relative',
-                            minHeight: '300px',
-                            display: 'flex'
-                        }}>
-                            {/* Y-Axis Labels */}
-                            <div style={{
-                                width: '60px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                paddingRight: '10px',
-                                textAlign: 'right',
-                                fontSize: '0.75rem',
-                                color: colors.text.secondary
-                            }}>
-                                {yAxisTicks.slice().reverse().map((tick, i) => (
-                                    <div key={i} style={{ height: '20px' }}>
-                                        {formatDollar(tick)}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Chart Area */}
-                            <div style={{
-                                flex: 1,
-                                position: 'relative',
-                                borderLeft: `1px solid ${colors.border.subtle}`,
-                                borderBottom: `1px solid ${colors.border.subtle}`,
-                                background: `linear-gradient(180deg, ${colors.bg.primary}22 0%, ${colors.bg.primary}00 100%)`,
-                                borderRadius: '8px',
-                                overflow: 'hidden'
-                            }}>
-                                {/* Grid Lines */}
-                                <svg
-                                    width="100%"
-                                    height="100%"
-                                    viewBox="0 0 100 100"
-                                    preserveAspectRatio="xMidYMid meet"
-                                    style={{ position: 'absolute', top: 0, left: 0 }}
-                                >
-                                    {/* Horizontal grid lines */}
-                                    {yAxisTicks.map((tick, i) => {
-                                        const y = (1 - (tick - minAmount) / range) * 100;
-                                        return (
-                                            <line
-                                                key={`h-${i}`}
-                                                x1="0"
-                                                y1={y}
-                                                x2="100"
-                                                y2={y}
-                                                stroke={colors.border.subtle}
-                                                strokeWidth="0.5"
-                                                strokeDasharray="2,4"
-                                                opacity="0.3"
-                                            />
-                                        );
-                                    })}
-
-                                    {/* Vertical grid lines */}
-                                    {transactions.map((_, i) => {
-                                        const x = (i / (transactions.length - 1)) * 100;
-                                        return (
-                                            <line
-                                                key={`v-${i}`}
-                                                x1={x}
-                                                y1="0"
-                                                x2={x}
-                                                y2="100"
-                                                stroke={colors.border.subtle}
-                                                strokeWidth="0.5"
-                                                strokeDasharray="2,4"
-                                                opacity="0.3"
-                                            />
-                                        );
-                                    })}
-
-                                    {/* Line Chart Path */}
+                    {chartData.length > 0 ? (
+                        <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                                     <defs>
-                                        <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                            <stop offset="0%" stopColor={colors.accent.blue} stopOpacity="0.8" />
-                                            <stop offset="50%" stopColor={colors.accent.violet} stopOpacity="1" />
-                                            <stop offset="100%" stopColor={colors.accent.blue} stopOpacity="0.8" />
-                                        </linearGradient>
-                                        <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor={colors.accent.blue} stopOpacity="0.3" />
-                                            <stop offset="100%" stopColor={colors.accent.blue} stopOpacity="0.05" />
+                                        <linearGradient id="txnAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor={colors.accent.blue} stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor={colors.accent.blue} stopOpacity={0.02} />
                                         </linearGradient>
                                     </defs>
-
-                                    {/* Area under the line */}
-                                    <path
-                                        d={`M ${dataPoints.map(point => `${point.x},${point.y}`).join(' L ')} L 95,95 L 5,95 Z`}
-                                        fill="url(#areaGradient)"
+                                    <CartesianGrid
+                                        strokeDasharray="3 6"
+                                        stroke={colors.border.subtle}
+                                        opacity={0.3}
+                                        vertical={false}
                                     />
-
-                                    {/* Main line */}
-                                    <polyline
-                                        points={dataPoints.map(point => `${point.x},${point.y}`).join(' ')}
-                                        fill="none"
-                                        stroke="url(#lineGradient)"
-                                        strokeWidth="1"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        vectorEffect="non-scaling-stroke"
+                                    <XAxis
+                                        dataKey="date"
+                                        tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                                        tickLine={false}
+                                        axisLine={{ stroke: colors.border.subtle }}
+                                        interval={chartData.length > 15 ? Math.floor(chartData.length / 8) : 0}
+                                        dy={4}
                                     />
-
-                                    {/* Data points with hover */}
-                                    {dataPoints.map(({ x, y, txn, index }) => (
-                                            <g key={index}>
-                                                <circle
-                                                    cx={x}
-                                                    cy={y}
-                                                    r={hoveredPoint === index ? "1.2" : "0.8"}
-                                                    fill={colors.accent.blue}
-                                                    stroke="white"
-                                                    strokeWidth="0.3"
-                                                    style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                                                    onMouseEnter={() => setHoveredPoint(index)}
-                                                    onMouseLeave={() => setHoveredPoint(null)}
-                                                />
-                                                {hoveredPoint === index && (
-                                                    <g>
-                                                        <rect
-                                                            x={x - 15}
-                                                            y={y - 8}
-                                                            width="30"
-                                                            height="5"
-                                                            fill={colors.bg.primary}
-                                                            stroke={colors.border.subtle}
-                                                            strokeWidth="0.2"
-                                                            rx="1"
-                                                        />
-                                                        <text
-                                                            x={x}
-                                                            y={y - 5}
-                                                            textAnchor="middle"
-                                                            fill={colors.text.primary}
-                                                            fontSize="1.5"
-                                                            fontWeight="600"
-                                                        >
-                                                            ${Math.abs(txn.amount).toLocaleString()}
-                                                        </text>
-                                                    </g>
-                                                )}
-                                            </g>
-                                        ))}
-                                </svg>
-                            </div>
+                                    <YAxis
+                                        tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(v) => v >= 1000 ? `$${(v / 1000).toFixed(0)}K` : `$${v}`}
+                                        width={55}
+                                    />
+                                    <RechartsTooltip
+                                        content={<CustomTooltip />}
+                                        cursor={{ stroke: colors.accent.blue, strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.5 }}
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="amount"
+                                        stroke={colors.accent.blue}
+                                        strokeWidth={2}
+                                        fill="url(#txnAreaGradient)"
+                                        dot={chartData.length <= 15 ? { r: 3, fill: colors.accent.blue, stroke: colors.bg.secondary, strokeWidth: 2 } : false}
+                                        activeDot={{ r: 5, fill: colors.accent.blue, stroke: 'white', strokeWidth: 2 }}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         </div>
                     ) : (
                         <div style={{
@@ -1449,40 +1360,10 @@
                             No transaction data available
                         </div>
                     )}
-
-                    {/* X-axis labels */}
-                    {transactions.length > 0 && (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            marginTop: '8px',
-                            marginLeft: '70px',
-                            fontSize: '0.7rem',
-                            color: colors.text.secondary
-                        }}>
-                            {transactions.map((txn, i) => {
-                                // Only show every other label if more than 7 transactions
-                                if (transactions.length > 7 && i % 2 !== 0) return null;
-
-                                let displayDate;
-                                if (txn.date.includes('-') && txn.date.split('-').length === 3) {
-                                    const parts = txn.date.split('-');
-                                    displayDate = `${parts[0]}/${parts[1]}`;
-                                } else {
-                                    const date = new Date(txn.date);
-                                    displayDate = `${date.getMonth() + 1}/${date.getDate()}`;
-                                }
-                                return (
-                                    <span key={i} style={{ textAlign: 'center' }}>
-                                        {displayDate}
-                                    </span>
-                                );
-                            }).filter(Boolean)}
-                        </div>
-                    )}
                 </div>
             );
         };
+
 
         // Neo4j Network Graph Component with Live Data
         const NetworkGraph = ({ alert }) => {
@@ -1710,8 +1591,21 @@
                     }
                 }
 
+                // ResizeObserver to handle container resizing (e.g. chat panel toggle)
+                let resizeObserver;
+                if (graphContainerRef.current) {
+                    resizeObserver = new ResizeObserver(() => {
+                        if (cyRef.current) {
+                            cyRef.current.resize();
+                            cyRef.current.fit(null, 20);
+                        }
+                    });
+                    resizeObserver.observe(graphContainerRef.current);
+                }
+
                 // Cleanup on unmount
                 return () => {
+                    if (resizeObserver) resizeObserver.disconnect();
                     if (cyRef.current) {
                         try {
                             cyRef.current.destroy();
@@ -2163,7 +2057,7 @@
                         fontSize: '0.75rem',
                         color: colors.text.secondary
                     }}>
-                        <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>🔄 Agent Activity:</div>
+                        <div style={{ fontWeight: '600', marginBottom: '0.25rem', color: colors.accent.blue }}>Agent Activity</div>
                         {activities.map((activity, i) => (
                             <div key={i} style={{ marginBottom: '0.25rem' }}>
                                 • {activity.agent || 'Agent'}: {activity.action || activity.tool || activity.message || 'Processing...'}
@@ -2228,7 +2122,7 @@
                         }}
                     >
                         <h4 style={{ margin: 0, color: colors.text.primary }}>
-                            🤖 AI Investigation Assistant
+                            AI Investigation Assistant
                             {isStreaming && <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>🔄 Analyzing...</span>}
                         </h4>
                         <span style={{ color: colors.text.secondary }}>
@@ -2257,7 +2151,7 @@
                                     }}>
                                         <div style={{ fontSize: '0.75rem', color: colors.text.secondary, marginBottom: '0.25rem' }}>
                                             {message.role === 'user' ? 'You' : 'AI Assistant'}
-                                            {message.isStreaming && <span style={{ marginLeft: '0.5rem' }}>🔄</span>}
+                                            {message.isStreaming && <span style={{ marginLeft: '0.5rem', display: 'inline-block', width: '12px', height: '12px', border: '2px solid ' + colors.accent.blue + '40', borderTop: '2px solid ' + colors.accent.blue, borderRadius: '50%', animation: 'spin 1s linear infinite', verticalAlign: 'middle' }}></span>}
                                             {message.hasError && <span style={{ marginLeft: '0.5rem', color: colors.accent.rose }}>⚠️</span>}
                                         </div>
 
@@ -2470,7 +2364,7 @@
             return (
                 <div style={{
                     padding: '0.5rem',
-                    height: 'calc(100vh - 60px)',
+                    height: 'calc(100vh - 52px)',
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
@@ -2760,73 +2654,75 @@
                         <div
                             style={{
                                 background: colors.bg.primary,
-                                border: `2px solid ${colors.border.subtle}`,
-                                borderRadius: '12px',
-                                padding: '2rem',
-                                maxWidth: '500px',
+                                border: `1px solid ${colors.border.subtle}`,
+                                borderRadius: '10px',
+                                padding: '1.25rem 1.5rem',
+                                maxWidth: '380px',
                                 width: '90%',
-                                boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
                                 position: 'relative'
                             }}
                             onClick={(e) => e.stopPropagation()}
                         >
-                            {/* Close button */}
-                            <button
-                                onClick={onClose}
-                                style={{
-                                    position: 'absolute',
-                                    top: '1rem',
-                                    right: '1rem',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: colors.text.secondary,
-                                    fontSize: '1.5rem',
-                                    cursor: 'pointer',
-                                    padding: '0.25rem',
-                                    borderRadius: '4px',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.target.style.background = colors.bg.tertiary;
-                                    e.target.style.color = colors.text.primary;
-                                }}
-                                onMouseOut={(e) => {
-                                    e.target.style.background = 'transparent';
-                                    e.target.style.color = colors.text.secondary;
-                                }}
-                            >
-                                ×
-                            </button>
-
-                            {/* Title */}
-                            <h3 style={{
-                                color: colors.text.primary,
-                                marginBottom: '1.5rem',
-                                fontSize: '1.25rem',
-                                fontWeight: '600'
-                            }}>
-                                Risk Score Explanation
-                            </h3>
+                            {/* Header row with title and close */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h3 style={{
+                                    color: colors.text.primary,
+                                    margin: 0,
+                                    fontSize: '1rem',
+                                    fontWeight: '600',
+                                    letterSpacing: '-0.01em'
+                                }}>
+                                    Risk Score Explanation
+                                </h3>
+                                <button
+                                    onClick={onClose}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: colors.text.secondary,
+                                        cursor: 'pointer',
+                                        padding: '2px',
+                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.background = colors.bg.tertiary;
+                                        e.currentTarget.style.color = colors.text.primary;
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = colors.text.secondary;
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{pointerEvents:'none'}}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
+                            </div>
 
                             {/* Content */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <div style={{
                                     background: colors.bg.secondary,
-                                    padding: '1rem',
+                                    padding: '0.75rem 1rem',
                                     borderRadius: '8px',
                                     border: `1px solid ${colors.border.subtle}`
                                 }}>
                                     <div style={{
                                         color: colors.text.secondary,
-                                        fontSize: '0.875rem',
-                                        marginBottom: '0.5rem',
-                                        fontWeight: '500'
+                                        fontSize: '0.75rem',
+                                        marginBottom: '0.25rem',
+                                        fontWeight: '600',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.03em'
                                     }}>
-                                        Alert Triggering Rule:
+                                        Alert Triggering Rule
                                     </div>
                                     <div style={{
                                         color: colors.text.primary,
-                                        fontSize: '1rem',
+                                        fontSize: '0.9rem',
                                         lineHeight: '1.5'
                                     }}>
                                         {rule}
@@ -2835,22 +2731,25 @@
 
                                 <div style={{
                                     background: colors.bg.secondary,
-                                    padding: '1rem',
+                                    padding: '0.75rem 1rem',
                                     borderRadius: '8px',
                                     border: `1px solid ${colors.border.subtle}`
                                 }}>
                                     <div style={{
                                         color: colors.text.secondary,
-                                        fontSize: '0.875rem',
-                                        marginBottom: '0.5rem',
-                                        fontWeight: '500'
+                                        fontSize: '0.75rem',
+                                        marginBottom: '0.25rem',
+                                        fontWeight: '600',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.03em'
                                     }}>
-                                        ML Model Risk Score:
+                                        ML Model Risk Score
                                     </div>
                                     <div style={{
                                         color: colors.accent.blue,
-                                        fontSize: '1.5rem',
-                                        fontWeight: '700'
+                                        fontSize: '1.25rem',
+                                        fontWeight: '700',
+                                        fontVariantNumeric: 'tabular-nums'
                                     }}>
                                         {score}
                                     </div>
@@ -2917,7 +2816,7 @@
                                 e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
                             }}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
                                 <span style={{
                                     width: '8px',
                                     height: '8px',
@@ -2926,7 +2825,7 @@
                                 }}></span>
                                 <span style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>Critical</span>
                             </div>
-                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none' }}>
+                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none', textAlign: 'center' }}>
                                 {analystData.alerts?.filter(a => a.priority === 'critical').length || 0}
                             </div>
                         </div>
@@ -2956,7 +2855,7 @@
                                 e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
                             }}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
                                 <span style={{
                                     width: '8px',
                                     height: '8px',
@@ -2965,7 +2864,7 @@
                                 }}></span>
                                 <span style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>High</span>
                             </div>
-                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none' }}>
+                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none', textAlign: 'center' }}>
                                 {analystData.alerts?.filter(a => a.priority === 'high').length || 0}
                             </div>
                         </div>
@@ -2995,8 +2894,8 @@
                                 e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
                             }}
                         >
-                            <div style={{ color: colors.text.secondary, fontSize: '0.875rem', pointerEvents: 'none' }}>Total Alerts</div>
-                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none' }}>
+                            <div style={{ color: colors.text.secondary, fontSize: '0.875rem', pointerEvents: 'none', textAlign: 'center' }}>Total Alerts</div>
+                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none', textAlign: 'center' }}>
                                 {analystData.stats?.total_alerts || 0}
                             </div>
                         </div>
@@ -3026,8 +2925,8 @@
                                 e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
                             }}
                         >
-                            <div style={{ color: colors.text.secondary, fontSize: '0.875rem', pointerEvents: 'none' }}>New Alerts</div>
-                            <div style={{ color: colors.kpi.negative, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none' }}>
+                            <div style={{ color: colors.text.secondary, fontSize: '0.875rem', pointerEvents: 'none', textAlign: 'center' }}>New Alerts</div>
+                            <div style={{ color: colors.kpi.negative, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none', textAlign: 'center' }}>
                                 {analystData.stats?.new_alerts || 0}
                             </div>
                         </div>
@@ -3634,7 +3533,8 @@
                     <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                         {/* Left Panel - Main Investigation Content */}
                         <div style={{
-                            flex: chatExpanded ? '60%' : '1',
+                            flex: 1,
+                            minWidth: 0,
                             overflow: 'auto',
                             padding: '2rem',
                             transition: 'all 0.3s ease'
@@ -3679,7 +3579,7 @@
                                 <div style={{ color: colors.text.secondary, fontSize: '0.875rem', marginBottom: '0.5rem', pointerEvents: 'none' }}>
                                     {metric.label}
                                 </div>
-                                <div style={{ color: metric.color, fontSize: '1.75rem', fontWeight: '700', pointerEvents: 'none' }}>
+                                <div style={{ color: metric.color, fontSize: '1.75rem', fontWeight: '700', pointerEvents: 'none', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
                                     {metric.label === 'Total Amount' ?
                                         `$${parseFloat(metric.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` :
                                         metric.value
@@ -3690,9 +3590,13 @@
                     </div>
 
                     {/* Visualizations Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-                        <TransactionTimeline alert={alert} />
-                        <NetworkGraph alert={alert} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem', minWidth: 0 }}>
+                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                            <TransactionTimeline alert={alert} />
+                        </div>
+                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                            <NetworkGraph alert={alert} />
+                        </div>
                     </div>
 
                     {/* Transaction Table */}
@@ -3710,12 +3614,12 @@
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
                                     <tr style={{ background: colors.bg.tertiary }}>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>ID</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Date</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Type</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Amount</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Location</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Flags</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>ID</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Date</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Type</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Amount</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Location</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Flags</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -3728,10 +3632,10 @@
                                                 transition: 'all 0.2s ease'
                                             }}
                                             onMouseOver={(e) => {
-                                                e.target.style.backgroundColor = colors.bg.tertiary;
+                                                e.currentTarget.style.backgroundColor = colors.bg.tertiary;
                                             }}
                                             onMouseOut={(e) => {
-                                                e.target.style.backgroundColor = 'transparent';
+                                                e.currentTarget.style.backgroundColor = 'transparent';
                                             }}
                                         >
                                             <td style={{ padding: '1rem', color: colors.text.primary, fontFamily: 'monospace' }}>
@@ -3862,11 +3766,10 @@
 
                         {/* Right Panel - AI Chat */}
                         <div style={{
-                            width: chatExpanded ? '40%' : '0',
-                            minWidth: chatExpanded ? '400px' : '0',
-                            maxWidth: chatExpanded ? '600px' : '0',
+                            flex: chatExpanded ? '0 0 38%' : '0 0 0px',
+                            maxWidth: chatExpanded ? '550px' : '0',
                             overflow: 'hidden',
-                            transition: 'all 0.3s ease',
+                            transition: 'flex-basis 0.3s ease',
                             borderLeft: chatExpanded ? `1px solid ${colors.border.subtle}` : 'none',
                             background: colors.bg.primary,
                             display: 'flex',
@@ -3885,8 +3788,8 @@
                                             justifyContent: 'space-between',
                                             alignItems: 'center'
                                         }}>
-                                            <h3 style={{ margin: 0, color: colors.text.primary }}>
-                                                🤖 AI Investigation Assistant
+                                            <h3 style={{ margin: 0, color: colors.text.primary, fontSize: '1rem', fontWeight: '600', letterSpacing: '-0.01em' }}>
+                                                AI Investigation Assistant
                                             </h3>
                                             <button
                                                 onClick={() => setChatExpanded(false)}
@@ -3899,7 +3802,7 @@
                                                 }}
                                                 title="Close Chat"
                                             >
-                                                ✕
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{pointerEvents:'none'}}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                                             </button>
                                         </div>
                                     </div>
@@ -3923,7 +3826,7 @@
                                                 textTransform: 'uppercase',
                                                 letterSpacing: '0.05em'
                                             }}>
-                                                🟢 Connected Agents • Multi-Agent Supervisor Active
+                                                <span style={{display:'inline-block',width:'8px',height:'8px',borderRadius:'50%',background:colors.accent.emerald,marginRight:'6px',boxShadow:'0 0 6px '+colors.accent.emerald}}></span> Connected Agents • Multi-Agent Supervisor Active
                                             </div>
                                             <button
                                                 onClick={() => setAgentsPanelMinimized(!agentsPanelMinimized)}
@@ -3947,7 +3850,7 @@
                                                 }}
                                                 title={agentsPanelMinimized ? "Expand agents panel" : "Minimize agents panel"}
                                             >
-                                                {agentsPanelMinimized ? '⬇️' : '⬆️'}
+                                                {agentsPanelMinimized ? '▾' : '▴'}
                                             </button>
                                         </div>
 
@@ -3960,12 +3863,12 @@
                                             gap: '0.5rem'
                                         }}>
                                             {[
-                                                { id: 'FIN-AML-policies', icon: '📚', name: 'Policy Expert', desc: 'FFEIC, FINRA & OFAC policies' },
-                                                { id: 'FIN-AML-case-details', icon: '🔍', name: 'Case Notes Analyst', desc: 'Case findings & history' },
-                                                { id: 'FIN-AML-media-updt', icon: '📰', name: 'Media Monitor', desc: 'Adverse media & crime data' },
-                                                { id: 'agent-aml-alert360', icon: '⚠️', name: 'Alert Specialist', desc: 'Customer alerts & transactions' },
-                                                { id: 'agent-aml-case360', icon: '📋', name: 'Case Metrics Analyst', desc: 'Case notes & documentation' },
-                                                { id: 'mcp-fin-aml-websearch', icon: '🌐', name: 'Web Search', desc: 'Recent news & reports' }
+                                                { id: 'FIN-AML-policies', icon: 'POL', color: colors.accent.blue, name: 'Policy Expert', desc: 'FFEIC, FINRA & OFAC policies' },
+                                                { id: 'FIN-AML-case-details', icon: 'CSE', color: colors.accent.cyan, name: 'Case Notes Analyst', desc: 'Case findings & history' },
+                                                { id: 'FIN-AML-media-updt', icon: 'MED', color: colors.accent.amber, name: 'Media Monitor', desc: 'Adverse media & crime data' },
+                                                { id: 'agent-aml-alert360', icon: 'ALT', color: colors.accent.rose, name: 'Alert Specialist', desc: 'Customer alerts & transactions' },
+                                                { id: 'agent-aml-case360', icon: 'MTR', color: colors.accent.violet, name: 'Case Metrics Analyst', desc: 'Case notes & documentation' },
+                                                { id: 'mcp-fin-aml-websearch', icon: 'WEB', color: colors.accent.emerald, name: 'Web Search', desc: 'Recent news & reports' }
                                             ].map((agent, index) => (
                                                 <div key={agent.id} style={{
                                                     background: colors.bg.primary,
@@ -4009,8 +3912,19 @@
 
                                                     {/* Agent Icon */}
                                                     <div style={{
-                                                        fontSize: '1.25rem',
-                                                        filter: 'brightness(1.1)'
+                                                        width: '28px',
+                                                        height: '28px',
+                                                        borderRadius: '6px',
+                                                        background: (agent.color || colors.accent.blue) + '25',
+                                                        border: `1px solid ${(agent.color || colors.accent.blue)}40`,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '0.55rem',
+                                                        fontWeight: '700',
+                                                        color: agent.color || colors.accent.blue,
+                                                        letterSpacing: '0.02em',
+                                                        flexShrink: 0
                                                     }}>
                                                         {agent.icon}
                                                     </div>
@@ -4072,7 +3986,7 @@
                                                 color: colors.text.secondary,
                                                 marginTop: '2rem'
                                             }}>
-                                                <p>💬 Ask the AI assistant anything about this investigation</p>
+                                                <p style={{fontSize: '0.95rem', color: colors.text.primary}}>Ask the AI assistant anything about this investigation</p>
                                                 <p style={{ fontSize: '0.875rem' }}>Try: "What patterns do you see in these transactions?"</p>
                                             </div>
                                         ) : (
@@ -4097,7 +4011,7 @@
                                                                 marginBottom: '0.25rem'
                                                             }}>
                                                                 {message.role === 'user' ? 'You' : 'AI Assistant'}
-                                                                {message.isStreaming && <span style={{ marginLeft: '0.5rem' }}>🔄</span>}
+                                                                {message.isStreaming && <span style={{ marginLeft: '0.5rem', display: 'inline-block', width: '12px', height: '12px', border: '2px solid ' + colors.accent.blue + '40', borderTop: '2px solid ' + colors.accent.blue, borderRadius: '50%', animation: 'spin 1s linear infinite', verticalAlign: 'middle' }}></span>}
                                                                 {message.hasError && <span style={{ marginLeft: '0.5rem', color: colors.accent.rose }}>⚠️</span>}
                                                             </div>
 
@@ -4112,7 +4026,7 @@
                                                                     fontSize: '0.75rem',
                                                                     color: colors.text.secondary
                                                                 }}>
-                                                                    <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>🔄 Agent Activity:</div>
+                                                                    <div style={{ fontWeight: '600', marginBottom: '0.25rem', color: colors.accent.blue }}>Agent Activity</div>
                                                                     {message.metadata.activities.map((activity, i) => (
                                                                         <div key={i} style={{ marginBottom: '0.25rem' }}>
                                                                             • {activity.agent || 'Agent'}: {activity.action || activity.tool || activity.message || 'Processing...'}
@@ -4277,7 +4191,7 @@
                             }}
                             title="Open AI Chat"
                         >
-                            💬
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{pointerEvents:'none'}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         </button>
                     )}
 
@@ -5807,16 +5721,19 @@
                                     WebkitBackgroundClip: 'text',
                                     WebkitTextFillColor: 'transparent',
                                     margin: 0,
-                                    letterSpacing: '-0.02em'
+                                    letterSpacing: '-0.03em',
+                                    lineHeight: 1.1
                                 }}>
                                     Sherlock AML
                                 </h1>
                             </div>
                             <p style={{
                                 color: colors.text.secondary,
-                                fontSize: '1.2rem',
-                                margin: '0.5rem 0 0 0',
-                                fontWeight: '300'
+                                fontSize: '1.125rem',
+                                margin: '0.75rem 0 0 0',
+                                fontWeight: '400',
+                                letterSpacing: '0.02em',
+                                opacity: 0.85
                             }}>
                                 Next-Generation Financial Crime Intelligence Platform
                             </p>
@@ -5849,7 +5766,7 @@
                                     <div style={{
                                         fontSize: '2rem',
                                         fontWeight: 'bold',
-                                        color: colors.accent.purple,
+                                        color: colors.accent.cyan,
                                         animation: 'countUp 2s ease-out 0.4s'
                                     }}>$10M+</div>
                                     <div style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>Annual Savings</div>
@@ -5871,14 +5788,15 @@
                                         ? `linear-gradient(135deg, ${colors.bg.secondary}, ${colors.bg.tertiary})`
                                         : colors.bg.secondary,
                                     border: `1px solid ${hoveredCard === 'executive' ? colors.accent.blue : colors.border.subtle}`,
-                                    borderRadius: '16px',
+                                    borderTop: `2px solid ${hoveredCard === 'executive' ? colors.accent.blue : colors.border.subtle}`,
+                                    borderRadius: '12px',
                                     padding: '2rem',
                                     cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                    transform: hoveredCard === 'executive' ? 'scale(1.02)' : 'scale(1)',
+                                    transition: 'all 0.25s ease',
+                                    transform: hoveredCard === 'executive' ? 'translateY(-4px)' : 'translateY(0)',
                                     boxShadow: hoveredCard === 'executive'
-                                        ? '0 20px 40px rgba(79, 172, 254, 0.2)'  // Blue shadow
-                                        : 'none',
+                                        ? '0 12px 32px rgba(95, 168, 211, 0.15), 0 4px 12px rgba(0,0,0,0.2)'
+                                        : '0 2px 8px rgba(0,0,0,0.1)',
                                     opacity: isLoaded ? 1 : 0,
                                     animation: 'slideInLeft 0.8s ease-out'
                                 }}
@@ -5896,19 +5814,22 @@
                                         width: '50px',
                                         height: '50px',
                                         borderRadius: '12px',
-                                        background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.purple})`,
+                                        background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         fontSize: '24px'
                                     }}>
-                                        📊
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+                                        </svg>
                                     </div>
                                     <div>
                                         <h2 style={{
                                             margin: 0,
                                             color: colors.text.primary,
-                                            fontSize: '1.5rem'
+                                            fontSize: '1.5rem',
+                                            letterSpacing: '-0.02em'
                                         }}>Executive Dashboard</h2>
                                         <p style={{
                                             margin: '0.25rem 0 0 0',
@@ -5938,7 +5859,7 @@
                                             gap: '0.5rem',
                                             marginBottom: '0.5rem'
                                         }}>
-                                            <span style={{ color: colors.accent.green }}>✓</span>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.accent.emerald} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><polyline points="20 6 9 17 4 12"/></svg>
                                             <span style={{ color: colors.text.secondary }}>{item}</span>
                                         </li>
                                     ))}
@@ -5946,10 +5867,10 @@
                                 <button style={{
                                     width: '100%',
                                     padding: '0.75rem',
-                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.purple})`,
+                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
                                     border: 'none',
                                     borderRadius: '8px',
-                                    color: colors.bg.primary,  // Changed to dark color for better contrast
+                                    color: colors.bg.primary,
                                     fontWeight: '600',
                                     fontSize: '1rem',
                                     cursor: 'pointer',
@@ -5967,14 +5888,15 @@
                                         ? `linear-gradient(135deg, ${colors.bg.secondary}, ${colors.bg.tertiary})`
                                         : colors.bg.secondary,
                                     border: `1px solid ${hoveredCard === 'analyst' ? colors.accent.blue : colors.border.subtle}`,
-                                    borderRadius: '16px',
+                                    borderTop: `2px solid ${hoveredCard === 'analyst' ? colors.accent.blue : colors.border.subtle}`,
+                                    borderRadius: '12px',
                                     padding: '2rem',
                                     cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                    transform: hoveredCard === 'analyst' ? 'scale(1.02)' : 'scale(1)',
+                                    transition: 'all 0.25s ease',
+                                    transform: hoveredCard === 'analyst' ? 'translateY(-4px)' : 'translateY(0)',
                                     boxShadow: hoveredCard === 'analyst'
-                                        ? '0 20px 40px rgba(79, 172, 254, 0.2)'  // Blue shadow (same as Executive)
-                                        : 'none',
+                                        ? '0 12px 32px rgba(95, 168, 211, 0.15), 0 4px 12px rgba(0,0,0,0.2)'
+                                        : '0 2px 8px rgba(0,0,0,0.1)',
                                     opacity: isLoaded ? 1 : 0,
                                     animation: 'slideInRight 0.8s ease-out'
                                 }}
@@ -5992,19 +5914,22 @@
                                         width: '50px',
                                         height: '50px',
                                         borderRadius: '12px',
-                                        background: `linear-gradient(135deg, ${colors.accent.green}, ${colors.accent.cyan})`,
+                                        background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         fontSize: '24px'
                                     }}>
-                                        🔍
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                                        </svg>
                                     </div>
                                     <div>
                                         <h2 style={{
                                             margin: 0,
                                             color: colors.text.primary,
-                                            fontSize: '1.5rem'
+                                            fontSize: '1.5rem',
+                                            letterSpacing: '-0.02em'
                                         }}>Alert Investigation</h2>
                                         <p style={{
                                             margin: '0.25rem 0 0 0',
@@ -6034,7 +5959,7 @@
                                             gap: '0.5rem',
                                             marginBottom: '0.5rem'
                                         }}>
-                                            <span style={{ color: colors.accent.green }}>✓</span>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.accent.emerald} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><polyline points="20 6 9 17 4 12"/></svg>
                                             <span style={{ color: colors.text.secondary }}>{item}</span>
                                         </li>
                                     ))}
@@ -6042,10 +5967,10 @@
                                 <button style={{
                                     width: '100%',
                                     padding: '0.75rem',
-                                    background: `linear-gradient(135deg, ${colors.accent.green}, ${colors.accent.cyan})`,
+                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
                                     border: 'none',
                                     borderRadius: '8px',
-                                    color: colors.bg.primary,  // Changed to dark color for better contrast
+                                    color: colors.bg.primary,
                                     fontWeight: '600',
                                     fontSize: '1rem',
                                     cursor: 'pointer',
@@ -6065,7 +5990,9 @@
                             borderRadius: '12px',
                             border: `1px solid ${colors.border.subtle}`,
                             opacity: isLoaded ? 1 : 0,
-                            animation: 'fadeIn 1s ease-out 0.5s both'
+                            animation: 'fadeIn 1s ease-out 0.5s both',
+                            backdropFilter: 'blur(8px)',
+                            background: 'rgba(42, 47, 53, 0.6)'
                         }}>
                             <div style={{
                                 display: 'grid',
