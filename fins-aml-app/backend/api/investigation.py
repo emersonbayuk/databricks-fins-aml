@@ -500,7 +500,7 @@ async def get_customer_timeline_transactions(customer_name: str, db: DatabaseSer
         FROM {config.table('transactions')} t
         WHERE t.customer_id = :customer_id
         ORDER BY t.transaction_date DESC
-        LIMIT 10
+        LIMIT 30
         """
 
         logger.info(f"🔍 Fetching transactions with query: {transaction_query}")
