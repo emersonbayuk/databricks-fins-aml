@@ -57,6 +57,6 @@ targets:
 resources:
   apps:
     fins-aml-platform:
-      name: "sherlock-aml"
+      name: "fins-aml-platform"
       description: "AI-powered AML Investigation Platform"
       source_code_path: .

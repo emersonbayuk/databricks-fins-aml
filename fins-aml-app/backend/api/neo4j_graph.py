@@ -13,28 +13,32 @@ logger.info("🚀 Neo4j graph API module loading...")
 
 router = APIRouter()
 
-# Check if Neo4j is configured
-neo4j_configured = bool(os.getenv('NEO4J_PASSWORD'))
+# Log environment variables for debugging
+logger.info(f"NEO4J_URI from env: {os.getenv('NEO4J_URI', 'NOT SET')}")
+logger.info(f"NEO4J_USER from env: {os.getenv('NEO4J_USER', 'NOT SET')}")
+logger.info(f"NEO4J_PASSWORD exists: {'YES' if os.getenv('NEO4J_PASSWORD') else 'NO'}")
 
-if neo4j_configured:
-    # Only try to connect if Neo4j credentials are provided
+# Import after logging to see if import fails
+try:
+    from backend.services.neo4j_service import neo4j_service
+    logger.info("✅ Neo4j service imported successfully")
+
+    # Try to connect
     try:
-        from backend.services.neo4j_service import neo4j_service
         connected = neo4j_service.connect()
         if connected:
-            logger.info("✅ Neo4j connection established")
+            logger.info("✅ Neo4j connection established successfully!")
         else:
-            neo4j_service = None
+            logger.error("❌ Failed to establish Neo4j connection")
     except Exception as e:
-        logger.debug(f"Neo4j not available: {e}")
-        neo4j_service = None
-else:
-    # No Neo4j configured - use mock service
+        logger.error(f"❌ Exception during Neo4j connection: {e}")
+except Exception as e:
+    logger.error(f"❌ Failed to import neo4j_service: {e}")
     neo4j_service = None
 
-# Create a simple mock service if neo4j_service is not available
+# Create a simple mock service if neo4j_service failed
 if neo4j_service is None:
-    logger.info("ℹ️ Using mock graph service (Neo4j not configured)")
+    logger.warning("⚠️ Creating mock Neo4j service for demo data")
     class MockNeo4jService:
         def connect(self):
             return False
@@ -230,15 +234,17 @@ async def get_customer_transactions(
 @router.get("/graph/health")
 async def check_neo4j_health():
     """Check Neo4j connection health"""
-    # If using mock service, return mock status
-    if not hasattr(neo4j_service, 'driver') or not neo4j_service.driver:
-        return {
-            "status": "mock",
-            "message": "Using mock graph service - Neo4j not configured",
-            "note": "Graph visualizations will show sample data"
-        }
-
     try:
+        if not neo4j_service.driver:
+            # Try to connect if not connected
+            connected = neo4j_service.connect()
+            if not connected:
+                return {
+                    "status": "disconnected",
+                    "message": "Failed to establish connection",
+                    "uri": neo4j_service.uri
+                }
+
         neo4j_service.driver.verify_connectivity()
 
         # Run a simple test query
@@ -254,28 +260,20 @@ async def check_neo4j_health():
             "test_value": test_value
         }
     except Exception as e:
-        logger.debug(f"Neo4j health check: {e}")
+        logger.error(f"Neo4j health check failed: {e}")
         return {
-            "status": "mock",
-            "message": "Using mock graph service",
-            "note": "Graph visualizations will show sample data"
+            "status": "error",
+            "message": str(e),
+            "uri": neo4j_service.uri
         }
 
 @router.get("/graph/test")
 async def test_neo4j_query():
     """Test Neo4j with a simple query to get all node labels"""
-    # If using mock service, return mock data
-    if not hasattr(neo4j_service, 'driver') or not neo4j_service.driver:
-        return {
-            "status": "mock",
-            "message": "Using mock service - no real Neo4j connection",
-            "sample_data": {
-                "nodes": ["Customer", "Transaction", "Account"],
-                "relationships": ["SENT", "RECEIVED", "OWNS"]
-            }
-        }
-
     try:
+        if not neo4j_service.driver:
+            neo4j_service.connect()
+
         with neo4j_service.driver.session(database=neo4j_service.database) as session:
             # Get all node labels
             result = session.run("CALL db.labels()")
