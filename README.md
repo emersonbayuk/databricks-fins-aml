@@ -26,16 +26,18 @@ fins-aml-amer/
 ├── 📄 README.md                     # This documentation
 ├── 🎨 assets/                       # Images and visual assets
 │   └── 🖼️  sherlock-banner.svg       # SherlockAML banner logo
-├── 🔢 fins-aml-datagen/             # Core data pipeline and analysis notebooks
-│   ├── 🏗️  01_aml_data_generation    # Core tables + alerts/cases/SARs + views
-│   ├── 🎯 02_aml_watchlist_screening # Watchlist and sanctions screening
-│   ├── 🕸️  03_aml_graph_model        # Graph nodes & edges for network viz
-│   ├── 📚 04_aml_knowledge_base     # Unstructured docs for RAG
-│   └── 📋 docs/                     # Documentation and diagrams
-│       ├── 🎨 banner.svg            # Platform banner
-│       └── 📊 erd_updated.svg       # Entity relationship diagram
-├── 📊 dashboards/                   # Lakeview dashboard exports
-│   └── 🎯 SherlockAML_ExecDash_Final.lvdash.json  # Executive dashboard
+├── 📦 fins-aml-data-bundle/         # Databricks bundle for data pipeline
+│   ├── 📋 databricks.yml            # Bundle configuration
+│   ├── 📝 process_dashboard_template.py  # Dashboard parameterization
+│   ├── 📊 SherlockAML_ExecDash_Template.lvdash.json  # Dashboard template
+│   └── 📓 notebooks/                # Data generation notebooks
+│       ├── 🏗️  01_aml_data_generation    # Core tables + alerts/cases/SARs
+│       ├── 🎯 02_aml_watchlist_screening # Watchlist screening
+│       ├── 🕸️  03_aml_graph_model        # Graph analysis
+│       └── 📚 04_aml_knowledge_base      # RAG documents
+├── 📦 fins-aml-app-bundle/          # Databricks bundle for application
+│   ├── 📋 databricks.yml            # App bundle configuration
+│   └── 📋 app.yaml                  # App runtime configuration
 └── 🖥️  fins-aml-app/                # Interactive investigation application
     ├── ⚡ main.py                   # Databricks application entry point
     ├── 🔧 backend/                  # FastAPI backend services
@@ -74,18 +76,22 @@ The `fins-aml-app/` folder contains a complete web-based investigation platform 
 
 ## 📊 Dashboard Configuration
 
-The application includes embedded Lakeview dashboards for executive reporting. After importing the dashboard:
+The dashboard is now **automatically deployed and configured** through the data bundle:
 
-### 🔧 Configure Dashboard IDs
+### ✨ Automated Dashboard Setup (New)
 
-1. **Import Dashboard**: Use the Databricks UI to import `dashboards/SherlockAML_ExecDash_Final.lvdash.json`
-2. **Copy Dashboard ID**: From the dashboard URL in your workspace
-3. **Update Configuration**: Modify the dashboard ID in `fins-aml-app/backend/api/auth.py`:
+1. **Dashboard Template**: The bundle uses `SherlockAML_ExecDash_Template.lvdash.json` with placeholders
+2. **Automatic Processing**: `process_dashboard_template.py` replaces `${catalog}` and `${schema}` with your values
+3. **Deployment**: Dashboard is automatically created with correct warehouse connection
+4. **No Manual Import**: Dashboard is deployed as part of the bundle resources
 
-```python
-# Line 52: Update with your imported dashboard ID
-dashboard_id = "YOUR_DASHBOARD_ID_HERE"
-```
+### 🔄 Handoff to App Bundle
+
+After data bundle deployment, provide these values to the app team:
+- **catalog**: Your Unity Catalog name
+- **schema**: Your schema name
+- **warehouse_id**: Your SQL warehouse ID
+- **dashboard_id**: Found in Dashboards page after deployment
 
 ### 🔐 Authentication Setup
 
@@ -96,7 +102,7 @@ The app supports multiple authentication methods:
 
 ## Entity Relationship Diagram
 
-![AML ERD](fins-aml-datagen/docs/erd_updated.svg)
+![AML ERD](fins-aml-data-bundle/notebooks/docs/erd_updated.svg)
 
 ### Table Joins
 
@@ -188,10 +194,13 @@ These documents are generated from the structured data and linked to specific cu
 
 ## Configuration
 
-All notebooks use:
-```python
-CATALOG = "fins_aml"
-SCHEMA = "data_generation"
+Configuration is now handled through bundle variables:
+```yaml
+variables:
+  catalog: "fins_aml"      # Your Unity Catalog
+  schema: "data_generation" # Your schema
+  warehouse_id: "xxx"      # Your SQL warehouse ID
+  force_rebuild: "false"   # Preserve existing data
 ```
 
 ## 🚀 Quick Start - Bundle Deployment (Recommended)
@@ -226,10 +235,15 @@ cd fins-aml-data-bundle
 databricks bundle deploy --profile your-workspace \
   --var="catalog=your_catalog" \
   --var="schema=your_schema" \
-  --var="warehouse_id=your_warehouse_id"
+  --var="warehouse_id=your_warehouse_id" \
+  --var="force_rebuild=false"
 
-# Run data generation pipeline (one-time)
-databricks bundle run aml_data_generation_pipeline --profile your-workspace
+# Run data generation pipeline (requires all variables)
+databricks bundle run aml_data_generation_pipeline --profile your-workspace \
+  --var="catalog=your_catalog" \
+  --var="schema=your_schema" \
+  --var="warehouse_id=your_warehouse_id" \
+  --var="force_rebuild=false"
 
 # The job is scheduled monthly but starts PAUSED
 # Activate in Databricks UI if needed
@@ -252,25 +266,31 @@ databricks bundle deploy --profile my-workspace \
 
 **What this deploys:**
 - ✅ Automated workflow running notebooks 01→02→03→04 sequentially
-- ✅ Lakeview dashboard with automatic warehouse connection
+- ✅ Parameterized Lakeview dashboard (auto-generated from template)
+- ✅ Efficiency checks to skip regenerating existing unstructured documents
 - ✅ Monthly schedule (1st of month at 2 AM PT, starts paused)
-- ✅ Email notifications on failure
+- ✅ Email notifications on failure (if configured)
 
 ### 🖥️ Step 2: Deploy Application (Optional)
 
-> **Note**: App deployment requires Neo4j and MAS endpoint credentials
+> **Note**: App deployment requires outputs from data bundle deployment
 
 ```bash
 # Navigate to app bundle
 cd fins-aml-app-bundle
 
-# Set additional environment variables
-export NEO4J_PASSWORD="your-neo4j-password"
-export MAS_ENDPOINT_URL="your-mas-endpoint"
+# First, get values from data bundle deployment:
+# - catalog, schema, warehouse_id, dashboard_id
+
+# Update app bundle configuration:
+# 1. Edit databricks.yml to add your target with these values
+# 2. Edit app.yaml environment variables to match
 
 # Deploy application
-databricks bundle deploy -t e2-demo-west
+databricks bundle deploy -t your-target --profile your-workspace
 ```
+
+See `fins-aml-app-bundle/DEPLOYMENT_GUIDE.md` for detailed configuration instructions.
 
 ---
 
@@ -285,9 +305,10 @@ databricks bundle deploy -t e2-demo-west
 4. **Configure** Knowledge Assistant to index the `knowledge_base` volume
 
 ### 📊 Dashboard Setup
-5. **Import** the Lakeview dashboard from `dashboards/SherlockAML_ExecDash_Final.lvdash.json`
-6. **Note the new dashboard ID** from your workspace after import
-7. **Update** the dashboard ID in `fins-aml-app/backend/api/auth.py` (line 52)
+5. **Import** the Lakeview dashboard from `fins-aml-data-bundle/SherlockAML_ExecDash_Template.lvdash.json`
+6. **Update catalog/schema references** in the dashboard queries to match your environment
+7. **Note the dashboard ID** from your workspace after import
+8. **Update** the dashboard ID in `fins-aml-app/backend/api/auth.py` (line 52)
 
 ### 🖥️ Application Deployment
 8. **Configure** environment variables for your workspace:
