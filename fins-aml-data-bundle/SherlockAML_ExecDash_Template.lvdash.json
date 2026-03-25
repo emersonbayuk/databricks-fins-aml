@@ -4,7 +4,7 @@
       "name": "fcaf3fed",
       "displayName": "cases",
       "queryLines": [
-        "SELECT * FROM fins_aml.data_generation.cases"
+        "SELECT * FROM ${catalog}.${schema}.cases"
       ]
     },
     {
@@ -13,28 +13,28 @@
       "queryLines": [
         "SELECT *,\n",
         "CAST(created_date AS DATE) AS created_date_day\n",
-        " FROM fins_aml.data_generation.alerts"
+        " FROM ${catalog}.${schema}.alerts"
       ]
     },
     {
       "name": "e369faee",
       "displayName": "case_audit_log",
       "queryLines": [
-        "SELECT * FROM fins_aml.data_generation.case_audit_log"
+        "SELECT * FROM ${catalog}.${schema}.case_audit_log"
       ]
     },
     {
       "name": "64298578",
       "displayName": "customers",
       "queryLines": [
-        "SELECT * FROM fins_aml.data_generation.customers"
+        "SELECT * FROM ${catalog}.${schema}.customers"
       ]
     },
     {
       "name": "0d976925",
       "displayName": "accounts",
       "queryLines": [
-        "SELECT * FROM fins_aml.data_generation.accounts"
+        "SELECT * FROM ${catalog}.${schema}.accounts"
       ]
     },
     {
@@ -45,7 +45,7 @@
         "WITH weekly AS (\n",
         "  SELECT DATE_TRUNC('WEEK', created_date) AS wk,\n",
         "         SUM(total_amount) AS v\n",
-        "  FROM fins_aml.data_generation.alerts\n",
+        "  FROM ${catalog}.${schema}.alerts\n",
         "  WHERE alert_status IN ('assigned','escalated','in_progress','new')\n",
         "  GROUP BY 1\n",
         "),\n",
@@ -68,7 +68,7 @@
         "WITH weekly AS (\n",
         "  SELECT DATE_TRUNC('WEEK', created_date) AS wk,\n",
         "         COUNT(DISTINCT alert_id) AS v\n",
-        "  FROM fins_aml.data_generation.alerts\n",
+        "  FROM ${catalog}.${schema}.alerts\n",
         "  WHERE alert_status IN ('assigned','escalated','in_progress','new')\n",
         "  GROUP BY 1\n",
         "),\n",
@@ -92,7 +92,7 @@
         "    DATE_TRUNC('WEEK', resolution_date) AS wk,\n",
         "    SUM(CASE WHEN resolution = 'False Positive' THEN 1 ELSE 0 END) AS fp_cnt,\n",
         "    SUM(CASE WHEN resolution IS NOT NULL THEN 1 ELSE 0 END)         AS resolved_cnt\n",
-        "  FROM fins_aml.data_generation.alerts\n",
+        "  FROM ${catalog}.${schema}.alerts\n",
         "  GROUP BY 1\n",
         "),\n",
         "rates AS (\n",
@@ -131,7 +131,7 @@
         "       AND due_date <  curr_start\n",
         "       AND resolution IS NULL\n",
         "    THEN alert_id END) AS previous_value\n",
-        "  FROM fins_aml.data_generation.alerts\n",
+        "  FROM ${catalog}.${schema}.alerts\n",
         "  CROSS JOIN win\n",
         ")\n",
         "SELECT current_value, previous_value\n",
@@ -147,7 +147,7 @@
         "  SELECT\n",
         "    DATE_TRUNC('WEEK', close_date) AS wk,\n",
         "    AVG(investigation_time_hours)  AS v\n",
-        "  FROM fins_aml.data_generation.cases\n",
+        "  FROM ${catalog}.${schema}.cases\n",
         "  WHERE close_date IS NOT NULL\n",
         "    AND investigation_time_hours IS NOT NULL\n",
         "  GROUP BY 1\n",
@@ -182,7 +182,7 @@
         "      WHEN due_date < curr_start - INTERVAL 7 DAYS\n",
         "       AND resolution IS NULL\n",
         "    THEN alert_id END) AS previous_value\n",
-        "  FROM fins_aml.data_generation.alerts\n",
+        "  FROM ${catalog}.${schema}.alerts\n",
         "  CROSS JOIN win\n",
         ")\n",
         "SELECT current_value, previous_value\n",
@@ -209,7 +209,7 @@
         "    ELSE COALESCE(case_type, '(unknown)')\n",
         "  END AS case_type_full,\n",
         "  AVG(investigation_time_hours) AS avg_investigation_time_hours\n",
-        "FROM fins_aml.data_generation.cases\n",
+        "FROM ${catalog}.${schema}.cases\n",
         "WHERE investigation_time_hours IS NOT NULL\n",
         "GROUP BY team_name, case_type_full\n",
         "ORDER BY team_name, case_type_full;"
@@ -229,7 +229,7 @@
         "    END AS disposition_norm,\n",
         "    case_id,\n",
         "    investigation_time_hours\n",
-        "  FROM fins_aml.data_generation.cases\n",
+        "  FROM ${catalog}.${schema}.cases\n",
         "  WHERE NULLIF(TRIM(disposition), '') IS NOT NULL   -- drop NULLs and blanks\n",
         "),\n",
         "filtered AS (\n",

@@ -194,7 +194,89 @@ CATALOG = "fins_aml"
 SCHEMA = "data_generation"
 ```
 
-## 🚀 Quick Start
+## 🚀 Quick Start - Bundle Deployment (Recommended)
+
+> **New in v2.0**: Automated deployment using Databricks Asset Bundles for data pipeline and dashboards
+
+### 📦 Bundle Architecture
+
+This repository now includes **two separate bundles** for clean separation of concerns:
+
+| Bundle | Purpose | Dependencies | Location |
+|--------|---------|--------------|----------|
+| **Data Bundle** | Data generation pipeline + Dashboard | None (standalone) | `fins-aml-data-bundle/` |
+| **App Bundle** | Interactive investigation app | Neo4j, MAS endpoints | `fins-aml-app-bundle/` |
+
+### 🔧 Prerequisites
+
+1. **Databricks CLI** installed and configured
+2. **SQL Warehouse** ID from your workspace
+3. **Databricks CLI Profile** configured for your workspace:
+   ```bash
+   databricks auth login --host https://your-workspace.cloud.databricks.com --profile your-workspace
+   ```
+
+### 📊 Step 1: Deploy Data Pipeline & Dashboard
+
+```bash
+# Navigate to data bundle
+cd fins-aml-data-bundle
+
+# Deploy bundle with your parameters
+databricks bundle deploy --profile your-workspace \
+  --var="catalog=your_catalog" \
+  --var="schema=your_schema" \
+  --var="warehouse_id=your_warehouse_id"
+
+# Run data generation pipeline (one-time)
+databricks bundle run aml_data_generation_pipeline --profile your-workspace
+
+# The job is scheduled monthly but starts PAUSED
+# Activate in Databricks UI if needed
+```
+
+**Bundle Variables:**
+- `catalog`: Unity Catalog name (default: "fins_aml")
+- `schema`: Schema name (default: "data_generation")
+- `force_rebuild`: Rebuild existing tables - "true"/"false" (default: "false")
+- `warehouse_id`: Your SQL warehouse ID (required)
+
+**Example with custom catalog/schema:**
+```bash
+databricks bundle deploy --profile my-workspace \
+  --var="catalog=test_catalog" \
+  --var="schema=test_schema" \
+  --var="force_rebuild=true" \
+  --var="warehouse_id=abc123def456"
+```
+
+**What this deploys:**
+- ✅ Automated workflow running notebooks 01→02→03→04 sequentially
+- ✅ Lakeview dashboard with automatic warehouse connection
+- ✅ Monthly schedule (1st of month at 2 AM PT, starts paused)
+- ✅ Email notifications on failure
+
+### 🖥️ Step 2: Deploy Application (Optional)
+
+> **Note**: App deployment requires Neo4j and MAS endpoint credentials
+
+```bash
+# Navigate to app bundle
+cd fins-aml-app-bundle
+
+# Set additional environment variables
+export NEO4J_PASSWORD="your-neo4j-password"
+export MAS_ENDPOINT_URL="your-mas-endpoint"
+
+# Deploy application
+databricks bundle deploy -t e2-demo-west
+```
+
+---
+
+## 🚀 Quick Start - Manual Setup (Alternative)
+
+> Use this approach if you prefer manual control or need to customize the pipeline
 
 ### 🔢 Data Pipeline Setup
 1. **Clone** this repo to your Databricks workspace
