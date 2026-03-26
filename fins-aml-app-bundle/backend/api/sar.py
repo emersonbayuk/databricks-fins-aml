@@ -192,10 +192,13 @@ async def generate_sar_narrative(request: SARGenerateRequest):
     import json
     
     try:
-        token = config.DATABRICKS_TOKEN
+        try:
+            token = config.get_oauth_token()
+        except RuntimeError:
+            token = None
 
         if not token:
-            logger.warning("No DATABRICKS_TOKEN available, returning default narrative")
+            logger.warning("No auth token available, returning default narrative")
             return SARNarrativeResponse(
                 confidence_score=92,
                 recommendation="SAR Filing Recommended",

@@ -153,14 +153,17 @@ async def get_user_token(request: Request) -> Dict[str, Any]:
                 "warning": "User token may not have embedding scopes. Configure SERVICE_PRINCIPAL_SECRET for proper embedding."
             }
 
-        # Fallback to PAT / environment token
-        if config.DATABRICKS_TOKEN:
-            logger.info("⚠️ No user token found, using DATABRICKS_TOKEN")
+        # Fallback to OAuth token or PAT
+        try:
+            fallback_token = config.get_oauth_token()
+            logger.info("⚠️ Using OAuth M2M token as fallback for embedding")
             return {
-                "token": config.DATABRICKS_TOKEN,
-                "type": "pat",
+                "token": fallback_token,
+                "type": "oauth_m2m",
                 "authenticated": True
             }
+        except RuntimeError:
+            pass
 
         logger.error("❌ No authentication token available")
         return {

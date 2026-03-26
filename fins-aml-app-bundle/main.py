@@ -45,10 +45,9 @@ async def lifespan(app: FastAPI):
     """Initialize and cleanup database connection"""
     global db_service
     try:
-        # Initialize database service
+        # Initialize database service (uses OAuth M2M via service principal)
         db_service = DatabaseService(
             warehouse_id=config.DATABRICKS_WAREHOUSE_ID,
-            token=config.DATABRICKS_TOKEN,
             hostname=config.DATABRICKS_HOSTNAME
         )
         logger.info("Database service initialized")

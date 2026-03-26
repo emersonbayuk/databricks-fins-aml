@@ -5,19 +5,24 @@ from backend import config
 
 # Test the actual schema
 def test_schema():
-    token = config.DATABRICKS_TOKEN or 'dummy'
     warehouse_id = config.DATABRICKS_WAREHOUSE_ID
+    creds = config.get_sql_credentials_provider()
 
-    if token == 'dummy':
-        print("No token available for testing")
+    if not creds and not config.DATABRICKS_TOKEN:
+        print("No credentials available for testing")
         return
 
+    connect_kwargs = dict(
+        server_hostname=config.DATABRICKS_HOSTNAME,
+        http_path=f'/sql/1.0/warehouses/{warehouse_id}',
+    )
+    if creds:
+        connect_kwargs["credentials_provider"] = creds
+    else:
+        connect_kwargs["access_token"] = config.DATABRICKS_TOKEN
+
     try:
-        with sql.connect(
-            server_hostname=config.DATABRICKS_HOSTNAME,
-            http_path=f'/sql/1.0/warehouses/{warehouse_id}',
-            access_token=token
-        ) as connection:
+        with sql.connect(**connect_kwargs) as connection:
 
             cursor = connection.cursor()
 

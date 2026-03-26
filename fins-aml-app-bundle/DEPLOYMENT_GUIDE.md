@@ -1,155 +1,166 @@
-# FINS AML App Bundle — New Environment Deployment Guide
+# FINS AML App Bundle — Deployment Guide
 
-This document lists every file and line that must be edited to deploy this app to a new Databricks workspace.
+This document describes how to deploy the SherlockAML app to any Databricks workspace.
 
 ---
 
 ## Prerequisites
 
-Before editing config files, gather these values from your target workspace:
+Before deploying, gather these values from your target workspace:
 
 | Value | Where to find it |
 |---|---|
 | **Workspace hostname** | URL bar, e.g. `my-workspace.cloud.databricks.com` |
 | **Workspace ID** | URL `?o=` parameter, or Workspace Settings |
-| **SQL Warehouse ID** | SQL Warehouses page → copy ID |
-| **Dashboard ID** | Open dashboard → ID in URL (`/dashboards/<id>`) |
-| **MAS endpoint URL** | Serving Endpoints → your MAS endpoint → full invocation URL |
-| **Service principal client ID** | Settings → Identity & Access → Service Principals |
-| **Service principal secret** | Service principal → Secrets → Generate |
+| **SQL Warehouse ID** | SQL Warehouses page -> copy ID |
+| **Dashboard ID** | Open dashboard -> ID in URL (`/dashboards/<id>`) |
+| **MAS endpoint URL** | Serving Endpoints -> your MAS endpoint -> full invocation URL |
 | **Neo4j URI / password** | Neo4j Aura console (if using graph features) |
 | **Unity Catalog / Schema** | The catalog and schema where AML tables live |
 | **Databricks CLI profile** | `~/.databrickscfg` profile name for the target workspace |
 
 ---
 
-## Files to Edit
+## Architecture
 
-### 1. `databricks.yml` — Add a new target block
+### Authentication
 
-Add a new target under the `targets:` section (or modify an existing one).
+The app uses **OAuth M2M (service principal)** for all Databricks API calls:
 
-**Lines 30–55** — Add a block like:
+- **SQL Warehouse queries** — Uses `databricks-sdk` credential provider (auto-refreshing tokens)
+- **Serving endpoint calls** (MAS agent, SAR generation) — Uses OAuth token via `config.get_oauth_token()`
+- **Dashboard embedding** — Uses service principal scoped token flow
+
+The Databricks Apps runtime automatically injects `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` for the app's service principal. **No PAT token is required.**
+
+A PAT (`DATABRICKS_TOKEN`) is supported as an optional fallback for local development only.
+
+### Parameterization
+
+All workspace-specific values in `app.yaml` use `${var.xxx}` bundle variable references. These are resolved from `databricks.yml` at deploy time. **You never need to edit `app.yaml` or `config.py` when deploying to a new workspace** — just add a target block to `databricks.yml`.
+
+---
+
+## Deploying to a New Workspace
+
+### Step 1: Add a target to `databricks.yml`
+
+Add a new block under `targets:`:
 
 ```yaml
 targets:
-  my-new-env:                        # choose a target name
+  my-new-workspace:
     workspace:
-      host: https://YOUR_HOSTNAME    # line: workspace.host
+      host: https://my-workspace.cloud.databricks.com
     variables:
-      databricks_hostname: "YOUR_HOSTNAME"
-      workspace_id: "YOUR_WORKSPACE_ID"
-      warehouse_id: "YOUR_WAREHOUSE_ID"
-      mas_endpoint_url: "https://YOUR_HOSTNAME/serving-endpoints/YOUR_MAS_ENDPOINT/invocations"
-      neo4j_uri: "neo4j+s://YOUR_NEO4J_INSTANCE.databases.neo4j.io"
-      dashboard_id: "YOUR_DASHBOARD_ID"
-      catalog: "YOUR_CATALOG"
-      schema: "YOUR_SCHEMA"
+      databricks_hostname: "my-workspace.cloud.databricks.com"
+      workspace_id: "1234567890"
+      warehouse_id: "abc123def456"
+      catalog: "fins_aml"
+      schema: "data_generation"
+      mas_endpoint_url: "https://my-workspace.cloud.databricks.com/serving-endpoints/my-mas/invocations"
+      dashboard_id: "your-dashboard-id"
+      neo4j_uri: "neo4j+s://xxx.databases.neo4j.io"
 ```
 
-> Note: The bundle `variables` defined in `databricks.yml` are **not** automatically injected into the running app. They are only used by `databricks bundle` commands. The actual app reads env vars from `app.yaml` (see next step).
+Variables with defaults (`catalog`, `schema`, `neo4j_user`, `neo4j_database`, `mas_endpoint_url`, `neo4j_uri`, `dashboard_id`) can be omitted if the defaults are acceptable.
 
----
-
-### 2. `app.yaml` — Update environment variable values
-
-These are the env vars injected into the running Databricks App. Update every `value:` field to match your target workspace.
-
-| Line | Env var | What to set |
-|------|---------|-------------|
-| 31 | `DATABRICKS_HOSTNAME` | Your workspace hostname (no `https://`) |
-| 33 | `DATABRICKS_WORKSPACE_ID` | Your workspace ID |
-| 35 | `DATABRICKS_DASHBOARD_ID` | Your published Lakeview dashboard ID |
-| 37 | `DATABRICKS_CATALOG` | Unity Catalog name where AML tables live |
-| 39 | `DATABRICKS_SCHEMA` | Schema name within that catalog |
-| 41 | `MAS_ENDPOINT_URL` | Full MAS serving endpoint invocation URL |
-| 43 | `NEO4J_URI` | Neo4j connection URI (or remove if not using) |
-
-**Lines that are auto-resolved (do NOT hardcode):**
-- Line 22: `DATABRICKS_WAREHOUSE_ID` — resolved from the `sql_warehouse` resource binding
-- Line 24: `DATABRICKS_TOKEN` — injected automatically by Databricks Apps runtime
-- Line 26: `NEO4J_PASSWORD` — injected from app secrets
-
-**After deploying**, you must set the secrets via the Databricks Apps UI:
-- `secret` → Your Databricks PAT or leave for Apps runtime auto-injection
-- `secret-2` → Your Neo4j password
-
----
-
-### 3. `backend/config.py` — Update default fallback values
-
-These defaults are used when env vars are not set (e.g., local development). Update them to match your primary workspace, or leave them as-is if you always deploy via `app.yaml`.
-
-| Line | Variable | Current default |
-|------|----------|----------------|
-| 12–13 | `DATABRICKS_HOSTNAME` | `fe-vm-industry-solutions-buildathon.cloud.databricks.com` |
-| 16 | `DATABRICKS_WORKSPACE_ID` | `237438879023004` |
-| 29–30 | `MAS_ENDPOINT_URL` | `https://{DATABRICKS_HOSTNAME}/serving-endpoints/mas-e3a6f805-endpoint/invocations` |
-| 34 | `NEO4J_URI` | `neo4j+s://398dd975.databases.neo4j.io` |
-| 40 | `DASHBOARD_ID` | `01f0ef2a97ed176dbe998b9ec4577b1b` |
-| 43 | `CATALOG` | `fins_aml` |
-| 44 | `SCHEMA` | `data_generation` |
-
-> These defaults only matter for local dev. When deployed as a Databricks App, `app.yaml` env vars override all of them.
-
----
-
-### 4. `.env.example` — Update example values (optional)
-
-If you want the example file to reflect the new environment, update lines 9–10, 19, 23–24, 27, 30, 33. This file is documentation only and does not affect the running app.
-
----
-
-### 5. `frontend/build/index.html` — No changes needed
-
-The frontend fetches workspace URL, workspace ID, and dashboard ID dynamically from the backend endpoint `/api/auth/workspace-info`. No hardcoded values need updating.
-
-> Lines 19–20 contain old values in an HTML comment block (documentation only) — safe to ignore.
-
----
-
-## Deployment Steps
+### Step 2: Deploy the bundle
 
 ```bash
-# 1. Validate the bundle
-databricks bundle validate -t my-new-env --profile YOUR_PROFILE
+# Validate
+databricks bundle validate -t my-new-workspace --profile YOUR_PROFILE
 
-# 2. Deploy the bundle (uploads code to workspace)
-databricks bundle deploy -t my-new-env --profile YOUR_PROFILE
+# Deploy (uploads code to workspace)
+databricks bundle deploy -t my-new-workspace --profile YOUR_PROFILE
 
-# 3. Trigger the app deployment (starts/restarts the app)
+# Start/restart the app
 databricks apps deploy fins-aml-platform --profile YOUR_PROFILE \
-  --source-code-path /Workspace/Users/YOUR_EMAIL/.bundle/fins-aml-platform/my-new-env/files
-
-# 4. Set app secrets in the Databricks UI
-#    Navigate to: Apps → fins-aml-platform → Settings
-#    - secret   → Databricks PAT (if not using Apps auto-injection)
-#    - secret-2 → Neo4j password
+  --source-code-path /Workspace/Users/YOUR_EMAIL/.bundle/fins-aml-platform/my-new-workspace/files
 ```
 
+### Step 3: Configure app secrets
+
+In the Databricks UI, navigate to **Apps -> fins-aml-platform -> Resources** and set:
+
+- `secret-2` -> Your Neo4j password (required for graph features)
+
+No PAT secret is needed — the app authenticates via the auto-injected service principal.
+
+### Step 4: Grant permissions
+
+The app's service principal needs:
+
+1. **CAN USE** on the SQL warehouse
+2. **CAN QUERY** on the MAS serving endpoint
+3. **CAN RUN** on the published Lakeview dashboard (for embedding)
+
 ---
 
-## Dashboard Setup Checklist
+## Files Overview
 
-For the embedded dashboard to work, you must also:
-
-1. **Publish the Lakeview dashboard** — The embedding API uses `/published/tokeninfo`, which requires the dashboard to be published
-2. **Create a service principal** — Settings → Identity & Access → Service Principals → Add
-3. **Generate a secret** for the service principal and configure it as `DATABRICKS_CLIENT_ID` / `DATABRICKS_CLIENT_SECRET` in the app environment
-4. **Grant dashboard access** — Share the dashboard with the service principal with **CAN RUN** permission
-5. **Grant warehouse access** — The service principal needs **CAN USE** on the SQL warehouse
+| File | Purpose | Edit needed for new workspace? |
+|---|---|---|
+| `databricks.yml` | Bundle config with targets and variables | **Yes** — add a target block |
+| `app.yaml` | App runtime config with `${var.xxx}` references | No |
+| `backend/config.py` | Python config with OAuth M2M token management | No |
+| `backend/api/agent.py` | MAS agent chat (OAuth auth) | No |
+| `backend/api/sar.py` | SAR narrative generation (OAuth auth) | No |
+| `backend/api/auth.py` | Dashboard embedding auth flow | No |
+| `backend/services/database.py` | SQL warehouse connection (OAuth credential provider) | No |
+| `main.py` | FastAPI app entrypoint | No |
+| `requirements.txt` | Python dependencies (includes `databricks-sdk`) | No |
+| `frontend/build/index.html` | React frontend (fetches config from API at runtime) | No |
+| `.env.example` | Example env vars for local development | No |
 
 ---
 
-## Quick Reference — All Environment-Specific Values
+## Environment Variables
 
-| Value | `app.yaml` | `databricks.yml` | `backend/config.py` |
-|---|---|---|---|
-| Hostname | line 31 | target → `databricks_hostname` | line 12–13 |
-| Workspace ID | line 33 | target → `workspace_id` | line 16 |
-| Warehouse ID | (auto-resolved) | target → `warehouse_id` | — |
-| Dashboard ID | line 35 | target → `dashboard_id` | line 40 |
-| Catalog | line 37 | target → `catalog` | line 43 |
-| Schema | line 39 | target → `schema` | line 44 |
-| MAS endpoint | line 41 | target → `mas_endpoint_url` | line 29–30 |
-| Neo4j URI | line 43 | target → `neo4j_uri` | line 34 |
+### Auto-injected by Databricks Apps runtime
+| Variable | Description |
+|---|---|
+| `DATABRICKS_HOST` | Workspace URL |
+| `DATABRICKS_CLIENT_ID` | Service principal OAuth client ID |
+| `DATABRICKS_CLIENT_SECRET` | Service principal OAuth secret |
+
+### Resolved from bundle variables (via `app.yaml`)
+| Variable | Bundle variable | Default |
+|---|---|---|
+| `DATABRICKS_HOSTNAME` | `databricks_hostname` | (required) |
+| `DATABRICKS_WORKSPACE_ID` | `workspace_id` | (required) |
+| `DATABRICKS_WAREHOUSE_ID` | (auto from sql_warehouse resource) | — |
+| `DATABRICKS_CATALOG` | `catalog` | `fins_aml` |
+| `DATABRICKS_SCHEMA` | `schema` | `data_generation` |
+| `DATABRICKS_DASHBOARD_ID` | `dashboard_id` | `""` |
+| `MAS_ENDPOINT_URL` | `mas_endpoint_url` | `""` |
+| `NEO4J_URI` | `neo4j_uri` | `""` |
+| `NEO4J_USER` | `neo4j_user` | `neo4j` |
+| `NEO4J_DATABASE` | `neo4j_database` | `neo4j` |
+
+### From app secrets
+| Variable | Secret resource | Description |
+|---|---|---|
+| `NEO4J_PASSWORD` | `secret-2` | Neo4j Aura password |
+
+---
+
+## Local Development
+
+For local development without the Databricks Apps runtime:
+
+1. Copy `.env.example` to `.env`
+2. Fill in `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` (or `DATABRICKS_TOKEN` as fallback)
+3. Fill in all workspace-specific values
+4. Run: `uvicorn main:app --host 0.0.0.0 --port 8000`
+
+---
+
+## Dashboard Setup
+
+For the embedded executive dashboard to work:
+
+1. **Create and publish** a Lakeview dashboard with the AML queries
+2. **Share** the dashboard with the app's service principal (**CAN RUN**)
+3. **Set** the `dashboard_id` variable in your target block
+4. The dashboard theme is controlled by its `uiSettings.theme` — set the `light` mode colors for the embed view

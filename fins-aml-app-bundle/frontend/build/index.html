@@ -37,7 +37,8 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/recharts@2/lib/index.js"></script>
+    <script src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2/umd/Recharts.js"></script>
     <script src="https://unpkg.com/marked@5.1.1/marked.min.js"></script>
     <!-- AIBI Client will be loaded dynamically as ES module -->
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
@@ -54,13 +55,45 @@
             }
         });
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #0f1419;
-            color: #f4f4f5;
-            line-height: 1.5;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #FFFFFF;
+            color: #003366;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Smooth transitions for all interactive elements */
+        button, select, a {
+            transition: all 0.2s ease;
+        }
+        button:hover {
+            filter: brightness(1.1);
+        }
+        /* Focus states for keyboard nav (a11y) */
+        button:focus-visible, select:focus-visible, a:focus-visible {
+            outline: 2px solid #1D4ED8;
+            outline-offset: 2px;
+        }
+        /* Scrollbar styling for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1D4ED8;
         }
         .loading {
             display: flex;
@@ -87,7 +120,7 @@
 
         /* Markdown Rendering Styles for Chat */
         .chat-message h1, .chat-message h2, .chat-message h3, .chat-message h4, .chat-message h5, .chat-message h6 {
-            color: #f4f4f5;
+            color: #003366;
             margin: 0.75rem 0 0.5rem 0;
             font-weight: 600;
         }
@@ -105,20 +138,20 @@
             margin: 0.5rem 0;
         }
         .chat-message code {
-            background-color: #2d3548;
-            color: #10b981;
+            background-color: #F1F5F9;
+            color: #0D3B66;
             padding: 0.125rem 0.25rem;
             border-radius: 3px;
             font-size: 0.8rem;
         }
         .chat-message pre {
-            background-color: #1a1f2e;
-            color: #f4f4f5;
+            background-color: #F8FAFC;
+            color: #1A2B45;
             padding: 1rem;
             border-radius: 8px;
             overflow-x: auto;
             margin: 0.5rem 0;
-            border: 1px solid #3f4a5e;
+            border: 1px solid #E2E8F0;
         }
         .chat-message pre code {
             background: none;
@@ -126,18 +159,59 @@
             color: inherit;
         }
         .chat-message strong {
-            color: #f4f4f5;
+            color: #003366;
             font-weight: 600;
         }
         .chat-message em {
-            color: #a1a1aa;
+            color: #64748B;
             font-style: italic;
         }
         .chat-message blockquote {
-            border-left: 4px solid #3b82f6;
+            border-left: 4px solid #1D4ED8;
             padding-left: 1rem;
             margin: 0.5rem 0;
-            color: #a1a1aa;
+            color: #64748B;
+        }
+        .chat-message table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0.75rem 0;
+            font-size: 0.75rem;
+            line-height: 1.3;
+        }
+        .chat-message thead {
+            position: sticky;
+            top: 0;
+        }
+        .chat-message th {
+            background: #E2E8F0;
+            color: #003366;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.4rem 0.5rem;
+            border: 1px solid #E2E8F0;
+            white-space: nowrap;
+        }
+        .chat-message td {
+            padding: 0.3rem 0.5rem;
+            border: 1px solid #E2E8F0;
+            color: #1A2B45;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .chat-message tr:nth-child(even) {
+            background: rgba(241, 245, 249, 0.5);
+        }
+        .chat-message tr:hover {
+            background: rgba(29, 78, 216, 0.06);
+        }
+        .chat-message .table-wrapper {
+            max-height: 300px;
+            overflow: auto;
+            border-radius: 6px;
+            border: 1px solid #E2E8F0;
         }
 
         /* Streaming Animations */
@@ -168,6 +242,27 @@
             50% { transform: translateY(-10px); }
             80%, 100% { transform: translateY(0); }
         }
+        /* Respect reduced motion preference (a11y) */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        /* Tabular figures for data-heavy content */
+        td, th {
+            font-variant-numeric: tabular-nums;
+        }
+        /* Improve select element styling */
+        select {
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2rem !important;
+        }
     </style>
 </head>
 <body>
@@ -178,31 +273,31 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Sherlock AML Color Palette
+        // FINS AML Color Palette — White / Blue / Gold
         const colors = {
             bg: {
-                primary: '#1B1F23',     // Canvas Background
-                secondary: '#2A2F35',   // Widget Background
-                tertiary: '#2A2F35',    // Widget Background
-                elevated: '#3C444C',    // Widget Border (used for elevated surfaces)
-                hover: '#3C444C'        // Widget Border
+                primary: '#FFFFFF',     // White primary background
+                secondary: '#F8FAFC',   // Light grey widget panels
+                tertiary: '#F1F5F9',    // Slightly deeper grey for depth
+                elevated: '#E2E8F0',    // Light grey elevated surfaces
+                hover: '#DBEAFE'        // Light blue hover tint
             },
             text: {
-                primary: '#E4E9EE',     // Font Color
-                secondary: '#97A7B3',   // Muted text
-                muted: '#7E7F9A'        // Even more muted
+                primary: '#003366',     // Deep Blue headers/text
+                secondary: '#64748B',   // Grey secondary text
+                muted: '#94A3B8'        // Lighter grey muted text
             },
             accent: {
-                blue: '#5FA8D3',        // Selection Color / Open status
+                blue: '#1D4ED8',        // Primary Blue / Actions
                 emerald: '#00A972',     // Positive/Low Risk KPI
-                amber: '#FFCC66',       // Pending Review status
+                amber: '#F7DC6F',       // Amber Glow / Pending Review
                 rose: '#BD2B26',        // Negative/High Risk KPI
                 violet: '#AB4057',      // PEP/Sanctions Alert
-                cyan: '#88CDCD'         // Bar Charts
+                cyan: '#7FB3D5'         // Sky Blue / Charts
             },
             border: {
-                subtle: '#3C444C',      // Widget Border
-                default: '#3C444C'      // Widget Border
+                subtle: '#E2E8F0',      // Light border
+                default: '#CBD5E1'      // Default border
             },
             teams: {
                 amlMonitoring: '#F8F2DC',
@@ -211,24 +306,24 @@
                 sanctions: '#7F4A2C'
             },
             scenarios: {
-                beneficiaryMismatch: '#B58A90',
-                cashStructuring: '#97A7B3',
-                dormantReactivation: '#7E7F9A',
-                highRiskGeo: '#EFB988',
-                pepSanctions: '#AB4057',
-                rapidFunds: '#EB9486',
-                relatedAccounts: '#F3DE8A',
-                roundDollar: '#CAE7B9',
-                thirdParty: '#C4CCD6'
+                beneficiaryMismatch: '#7FB3D5',
+                cashStructuring: '#1A2B45',
+                dormantReactivation: '#003366',
+                highRiskGeo: '#D4AF37',
+                pepSanctions: '#0D3B66',
+                rapidFunds: '#1D4ED8',
+                relatedAccounts: '#F4D35E',
+                roundDollar: '#7FB3D5',
+                thirdParty: '#64748B'
             },
             status: {
                 escalated: '#730D21',
-                open: '#5FA8D3',
-                pendingReview: '#FFCC66',
-                medium: '#EFB988'  // Specific yellow for medium priority
+                open: '#1D4ED8',
+                pendingReview: '#F7DC6F',
+                medium: '#D4AF37'       // Rich Gold for medium priority
             },
             charts: {
-                bar: '#88CDCD',
+                bar: '#7FB3D5',
                 reference: '#CD4631'
             },
             kpi: {
@@ -491,12 +586,17 @@
         const Header = ({ activeTab, onTabChange, selectedAnalyst, onAnalystChange, analysts, onGoHome }) => {
             return (
                 <div style={{
-                    background: colors.bg.secondary,
+                    background: 'rgba(255, 255, 255, 0.92)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
                     borderBottom: `1px solid ${colors.border.subtle}`,
-                    padding: '1rem 2rem',
+                    padding: '0.75rem 2rem',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 100
                 }}>
                     {/* Logo and Title */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -504,7 +604,7 @@
                             width: '36px',
                             height: '36px',
                             borderRadius: '8px',
-                            background: `linear-gradient(135deg, ${colors.accent.blue} 0%, ${colors.accent.violet} 100%)`,
+                            background: `linear-gradient(135deg, #003366 0%, #1D4ED8 100%)`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -531,18 +631,27 @@
                         </span>
                     </div>
 
-                    {/* Navigation Tabs */}
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {/* Navigation Tabs - positioned absolutely to stay centered */}
+                    <div style={{
+                        position: 'absolute',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        display: 'flex',
+                        gap: '0.5rem'
+                    }}>
                         <button
                             onClick={() => onTabChange('executive')}
                             style={{
                                 background: activeTab === 'executive' ? colors.accent.blue : 'transparent',
                                 color: activeTab === 'executive' ? 'white' : colors.text.secondary,
-                                border: `1px solid ${colors.border.default}`,
-                                padding: '0.75rem 1.5rem',
-                                borderRadius: '8px',
+                                border: `1px solid ${activeTab === 'executive' ? colors.accent.blue : colors.border.default}`,
+                                padding: '0.5rem 1.25rem',
+                                borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: '0.9rem'
+                                fontSize: '0.875rem',
+                                fontWeight: activeTab === 'executive' ? '600' : '400',
+                                letterSpacing: '-0.01em',
+                                transition: 'all 0.2s ease'
                             }}
                         >
                             Executive Overview
@@ -552,11 +661,14 @@
                             style={{
                                 background: activeTab === 'analyst' ? colors.accent.blue : 'transparent',
                                 color: activeTab === 'analyst' ? 'white' : colors.text.secondary,
-                                border: `1px solid ${colors.border.default}`,
-                                padding: '0.75rem 1.5rem',
-                                borderRadius: '8px',
+                                border: `1px solid ${activeTab === 'analyst' ? colors.accent.blue : colors.border.default}`,
+                                padding: '0.5rem 1.25rem',
+                                borderRadius: '6px',
                                 cursor: 'pointer',
-                                fontSize: '0.9rem'
+                                fontSize: '0.875rem',
+                                fontWeight: activeTab === 'analyst' ? '600' : '400',
+                                letterSpacing: '-0.01em',
+                                transition: 'all 0.2s ease'
                             }}
                         >
                             Alert Investigation
@@ -565,30 +677,32 @@
 
                     {/* User Info + Analyst Selector (only on My Queue) */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        {activeTab === 'analyst' && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>View As:</span>
-                                <select
-                                    value={selectedAnalyst}
-                                    onChange={(e) => onAnalystChange(e.target.value)}
-                                    style={{
-                                        background: colors.bg.tertiary,
-                                        color: colors.text.primary,
-                                        border: `1px solid ${colors.border.default}`,
-                                        padding: '0.5rem 1rem',
-                                        borderRadius: '6px',
-                                        fontSize: '0.875rem'
-                                    }}
-                                >
-                                    {analysts.map(analyst => (
-                                        <option key={analyst.analyst_name} value={analyst.analyst_name}>
-                                            {analyst.analyst_name} ({analyst.team_name})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            visibility: activeTab === 'analyst' ? 'visible' : 'hidden'
+                        }}>
+                            <span style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>View As:</span>
+                            <select
+                                value={selectedAnalyst}
+                                onChange={(e) => onAnalystChange(e.target.value)}
+                                style={{
+                                    background: colors.bg.tertiary,
+                                    color: colors.text.primary,
+                                    border: `1px solid ${colors.border.default}`,
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.875rem'
+                                }}
+                            >
+                                {analysts.map(analyst => (
+                                    <option key={analyst.analyst_name} value={analyst.analyst_name}>
+                                        {analyst.analyst_name} ({analyst.team_name})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
             );
@@ -838,20 +952,21 @@
         const DailyAlertsChart = ({ selectedAnalyst }) => {
             const [chartData, setChartData] = React.useState([]);
             const [loading, setLoading] = React.useState(true);
+            const [scenarios, setScenarios] = React.useState([]);
 
-            // Define all possible scenarios with their colors (at component level)
-            const scenarioColors = [
-                { key: 'Cash Structuring Detection', color: colors.scenarios.cashStructuring },
-                { key: 'Rapid Fund Movement', color: colors.scenarios.rapidFunds },
-                { key: 'Dormant Account Reactivation', color: colors.scenarios.dormantReactivation },
-                { key: 'Related Account Movement', color: colors.scenarios.relatedAccounts },
-                { key: 'Round Dollar Pattern', color: colors.scenarios.roundDollar },
-                { key: 'High-Risk Geographic', color: colors.scenarios.highRiskGeo },
-                { key: 'PEP/Sanctions', color: colors.scenarios.pepSanctions },
-                { key: 'Third-Party Deposits', color: colors.scenarios.thirdParty },
-                { key: 'Beneficiary Mismatch', color: colors.scenarios.beneficiaryMismatch },
-                { key: 'Other', color: colors.text.muted } // Using muted color for Other
-            ];
+            // Scenario color map
+            const scenarioColorMap = {
+                'Cash Structuring Detection': colors.scenarios.cashStructuring,
+                'Rapid Fund Movement': colors.scenarios.rapidFunds,
+                'Dormant Account Reactivation': colors.scenarios.dormantReactivation,
+                'Related Account Movement': colors.scenarios.relatedAccounts,
+                'Round Dollar Pattern': colors.scenarios.roundDollar,
+                'High-Risk Geographic': colors.scenarios.highRiskGeo,
+                'PEP/Sanctions': colors.scenarios.pepSanctions,
+                'Third-Party Deposits': colors.scenarios.thirdParty,
+                'Beneficiary Mismatch': colors.scenarios.beneficiaryMismatch,
+                'Other': colors.text.muted
+            };
 
             // Fetch real chart data
             React.useEffect(() => {
@@ -867,54 +982,37 @@
                         const data = await response.json();
 
                         if (data.chart_data) {
-                            // New data structure: [{week_start, scenario, count}, ...]
                             const apiData = data.chart_data;
+                            const uniqueWeeks = [...new Set(apiData.map(item => item.week_start))].sort();
+                            const uniqueScenarios = [...new Set(apiData.map(item => item.scenario))];
 
-                            // 1. Get unique weeks for the X-Axis labels
-                            const uniqueWeeks = [...new Set(apiData.map(item => item.week_start))];
-                            const labels = uniqueWeeks.sort();
-
-                            // 2. Format dates for display
                             const formatDateLabel = (dateString) => {
                                 const date = new Date(dateString);
                                 return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
                             };
 
-                            // 3. Construct the datasets by pivoting the data
-                            const scenarios = [...new Set(apiData.map(item => item.scenario))];
-
-                            // Create transformed data for existing chart component
-                            const transformedData = labels.map(week => {
-                                const weekData = {
-                                    date: formatDateLabel(week),
-                                    total: 0
-                                };
-
-                                // Initialize all scenario counts to 0
-                                scenarios.forEach(scenario => {
-                                    weekData[scenario] = 0;
-                                });
-
-                                // Fill in actual counts for this week
+                            const transformed = uniqueWeeks.map(week => {
+                                const weekData = { date: formatDateLabel(week), total: 0 };
+                                uniqueScenarios.forEach(s => { weekData[s] = 0; });
                                 apiData.forEach(record => {
                                     if (record.week_start === week) {
                                         weekData[record.scenario] = record.count;
                                         weekData.total += record.count;
                                     }
                                 });
-
                                 return weekData;
                             });
 
-                            setChartData(transformedData);
+                            setChartData(transformed);
+                            setScenarios(uniqueScenarios);
                         }
                     } catch (error) {
                         console.error('Failed to fetch chart data:', error);
-                        // Fallback to mock data on error
                         setChartData([
-                            { date: '01-01', 'Cash Structuring Detection': 12, 'Rapid Fund Movement': 8, 'Dormant Account Reactivation': 6, 'Related Account Movement': 4, 'Round Dollar Pattern': 7, total: 37 },
-                            { date: '01-02', 'Cash Structuring Detection': 10, 'Rapid Fund Movement': 9, 'Dormant Account Reactivation': 7, 'Related Account Movement': 5, 'Round Dollar Pattern': 8, total: 39 }
+                            { date: '01-01', 'Cash Structuring Detection': 12, 'Rapid Fund Movement': 8, 'Dormant Account Reactivation': 6, total: 26 },
+                            { date: '01-02', 'Cash Structuring Detection': 10, 'Rapid Fund Movement': 9, 'Dormant Account Reactivation': 7, total: 26 }
                         ]);
+                        setScenarios(['Cash Structuring Detection', 'Rapid Fund Movement', 'Dormant Account Reactivation']);
                     } finally {
                         setLoading(false);
                     }
@@ -922,6 +1020,83 @@
 
                 fetchChartData();
             }, [selectedAnalyst]);
+
+            // Recharts components
+            const { ResponsiveContainer: RC, BarChart, Bar, XAxis: BXAxis, YAxis: BYAxis, CartesianGrid: BGrid, Tooltip: BTooltip, Legend } = window.Recharts || {};
+
+            // Custom tooltip for the bar chart
+            const CustomBarTooltip = ({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                    const total = payload.reduce((sum, p) => sum + (p.value || 0), 0);
+                    return (
+                        <div style={{
+                            background: colors.bg.primary,
+                            border: `1px solid ${colors.border.subtle}`,
+                            borderRadius: '8px',
+                            padding: '0.75rem',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            minWidth: '180px'
+                        }}>
+                            <p style={{ margin: '0 0 0.5rem', color: colors.text.primary, fontSize: '0.8rem', fontWeight: '600' }}>
+                                {label}
+                            </p>
+                            {payload.filter(p => p.value > 0).map((p, i) => (
+                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: p.fill }} />
+                                        <span style={{ color: colors.text.secondary, fontSize: '0.75rem' }}>{p.dataKey}</span>
+                                    </div>
+                                    <span style={{ color: colors.text.primary, fontSize: '0.75rem', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }}>{p.value}</span>
+                                </div>
+                            ))}
+                            <div style={{ borderTop: `1px solid ${colors.border.subtle}`, marginTop: '0.5rem', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: colors.text.secondary, fontSize: '0.75rem' }}>Total</span>
+                                <span style={{ color: colors.text.primary, fontSize: '0.8rem', fontWeight: '700' }}>{total}</span>
+                            </div>
+                        </div>
+                    );
+                }
+                return null;
+            };
+
+            // Custom legend
+            const renderLegend = () => {
+                const activeScenarios = scenarios.filter(s =>
+                    chartData.some(day => (day[s] || 0) > 0)
+                );
+
+                return (
+                    <div style={{
+                        display: 'flex',
+                        gap: '1.5rem',
+                        marginTop: '1rem',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                        background: colors.bg.tertiary,
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border.subtle}`
+                    }}>
+                        {activeScenarios.map(scenario => {
+                            const totalCount = chartData.reduce((sum, day) => sum + (day[scenario] || 0), 0);
+                            return (
+                                <div key={scenario} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem' }}>
+                                    <div style={{
+                                        width: '14px',
+                                        height: '14px',
+                                        background: scenarioColorMap[scenario] || colors.text.muted,
+                                        borderRadius: '3px'
+                                    }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ color: colors.text.primary, fontSize: '0.8rem', fontWeight: '500' }}>{scenario}</span>
+                                        <span style={{ color: colors.text.secondary, fontSize: '0.7rem' }}>{totalCount} total</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            };
 
             return (
                 <div style={{
@@ -935,7 +1110,7 @@
                         Daily Alerts by Scenario - {selectedAnalyst || 'All Analysts'}
                     </h3>
 
-                    {loading ? (
+                    {loading || !RC ? (
                         <div style={{
                             display: 'flex',
                             justifyContent: 'center',
@@ -947,248 +1122,85 @@
                         </div>
                     ) : (
                         <>
-                            {/* Stacked bar chart visualization - full width */}
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'end',
-                                justifyContent: 'space-between',
-                                height: '320px',
-                                padding: '0 2rem',
-                                width: '100%'
-                            }}>
-                                {chartData.map((day, index) => {
-                                    const maxHeight = 280;  // Increased height
-                                    const maxTotal = Math.max(...chartData.map(d => d.total), 10); // Better scaling
-                                    const barHeight = (day.total / maxTotal) * maxHeight;
-
-                                    return (
-                                        <div key={index} style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            flex: '1',
-                                            maxWidth: '140px',
-                                            padding: '0 0.5rem'
-                                        }}>
-                                            {/* Stacked Bar */}
-                                            <div style={{
-                                                position: 'relative',
-                                                height: `${barHeight}px`,
-                                                width: '100%',
-                                                minWidth: '40px',
-                                                borderRadius: '6px 6px 0 0',
-                                                overflow: 'hidden',
-                                                background: colors.bg.tertiary,
-                                                marginBottom: '0.5rem',
-                                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                border: `1px solid ${colors.border.subtle}`
-                                            }}>
-                                                {(() => {
-                                                    let accumulatedHeight = 0;
-                                                    return scenarioColors.map((scenario) => {
-                                                        const count = day[scenario.key] || 0;
-                                                        if (count === 0) return null;
-
-                                                        const segmentHeight = (count / day.total) * barHeight;
-                                                        const bottomPosition = accumulatedHeight;
-                                                        accumulatedHeight += segmentHeight;
-
-                                                        return (
-                                                            <div
-                                                                key={scenario.key}
-                                                                style={{
-                                                                    position: 'absolute',
-                                                                    bottom: `${bottomPosition}px`,
-                                                                    left: 0,
-                                                                    right: 0,
-                                                                    height: `${segmentHeight}px`,
-                                                                    background: scenario.color,
-                                                                    transition: 'all 0.3s ease',
-                                                                    cursor: 'pointer',
-                                                                    borderTop: bottomPosition > 0 ? `1px solid rgba(255,255,255,0.1)` : 'none'
-                                                                }}
-                                                                title={`${scenario.key}: ${count} alerts`}
-                                                                onMouseEnter={(e) => {
-                                                                    e.target.style.opacity = '0.8';
-                                                                    e.target.style.zIndex = '10';
-                                                                }}
-                                                                onMouseLeave={(e) => {
-                                                                    e.target.style.opacity = '1';
-                                                                    e.target.style.zIndex = 'auto';
-                                                                }}
-                                                            >
-                                                                {/* Show count if segment is large enough */}
-                                                                {segmentHeight > 20 && (
-                                                                    <span style={{
-                                                                        position: 'absolute',
-                                                                        top: '50%',
-                                                                        left: '50%',
-                                                                        transform: 'translate(-50%, -50%)',
-                                                                        color: 'white',
-                                                                        fontSize: '0.7rem',
-                                                                        fontWeight: 'bold',
-                                                                        textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                                                                        pointerEvents: 'none'
-                                                                    }}>
-                                                                        {count}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    });
-                                                })()}
-                                            </div>
-                                            {/* Labels */}
-                                            <div style={{
-                                                fontSize: '0.75rem',
-                                                color: colors.text.secondary,
-                                                textAlign: 'center',
-                                                wordWrap: 'break-word',
-                                                maxWidth: '100%'
-                                            }}>
-                                                <div style={{ fontSize: '0.7rem', fontWeight: '500' }}>{day.date}</div>
-                                                <div style={{
-                                                    color: colors.text.primary,
-                                                    fontWeight: '700',
-                                                    fontSize: '0.9rem',
-                                                    marginTop: '0.25rem'
-                                                }}>
-                                                    {day.total}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                            <div style={{ width: '100%', height: '350px' }}>
+                                <RC width="100%" height="100%">
+                                    <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }} barCategoryGap="20%">
+                                        <BGrid strokeDasharray="3 6" stroke={colors.border.subtle} opacity={0.3} vertical={false} />
+                                        <BXAxis
+                                            dataKey="date"
+                                            tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                                            tickLine={false}
+                                            axisLine={{ stroke: colors.border.subtle }}
+                                            dy={4}
+                                        />
+                                        <BYAxis
+                                            tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            width={35}
+                                            allowDecimals={false}
+                                        />
+                                        <BTooltip content={<CustomBarTooltip />} cursor={{ fill: colors.bg.tertiary, opacity: 0.5 }} />
+                                        {scenarios.map(scenario => (
+                                            <Bar
+                                                key={scenario}
+                                                dataKey={scenario}
+                                                stackId="alerts"
+                                                fill={scenarioColorMap[scenario] || colors.text.muted}
+                                                radius={scenarios.indexOf(scenario) === scenarios.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                                            />
+                                        ))}
+                                    </BarChart>
+                                </RC>
                             </div>
-
-                            {/* Enhanced Legend */}
-                            <div style={{
-                                display: 'flex',
-                                gap: '1.5rem',
-                                marginTop: '1.5rem',
-                                flexWrap: 'wrap',
-                                justifyContent: 'center',
-                                padding: '1rem',
-                                background: colors.bg.tertiary,
-                                borderRadius: '8px',
-                                border: `1px solid ${colors.border.subtle}`
-                            }}>
-                                {scenarioColors
-                                    .filter(scenario => {
-                                        // Only show scenarios that have data
-                                        return chartData.some(day => (day[scenario.key] || 0) > 0);
-                                    })
-                                    .map((scenario) => {
-                                        const totalCount = chartData.reduce((sum, day) => sum + (day[scenario.key] || 0), 0);
-                                        return (
-                                            <div key={scenario.key} style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem',
-                                                padding: '0.25rem 0.5rem',
-                                                borderRadius: '4px',
-                                                transition: 'background 0.2s',
-                                                cursor: 'pointer'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.background = colors.bg.secondary;
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.background = 'transparent';
-                                            }}>
-                                                <div style={{
-                                                    width: '16px',
-                                                    height: '16px',
-                                                    background: scenario.color,
-                                                    borderRadius: '3px',
-                                                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                                                }} />
-                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span style={{ color: colors.text.primary, fontSize: '0.8rem', fontWeight: '500' }}>
-                                                        {scenario.key}
-                                                    </span>
-                                                    <span style={{ color: colors.text.secondary, fontSize: '0.7rem' }}>
-                                                        {totalCount} total
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                            </div>
+                            {renderLegend()}
                         </>
                     )}
                 </div>
             );
         };
 
-        // Transaction Timeline Component - Polished Version
+        // Recharts components (loaded via UMD global)
+        const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip: RechartsTooltip } = window.Recharts || {};
+
         const TransactionTimeline = ({ alert }) => {
             const [transactions, setTransactions] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [hoveredPoint, setHoveredPoint] = useState(null);
-            const containerRef = useRef(null);
-            const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
-            // Track container dimensions
-            useEffect(() => {
-                const updateDimensions = () => {
-                    if (containerRef.current) {
-                        const rect = containerRef.current.getBoundingClientRect();
-                        setDimensions({
-                            width: rect.width - 48, // Subtract padding
-                            height: rect.height - 120 // Subtract header and padding
-                        });
-                    }
-                };
-                updateDimensions();
-                window.addEventListener('resize', updateDimensions);
-                return () => window.removeEventListener('resize', updateDimensions);
-            }, []);
 
             // Fetch real transaction data
             useEffect(() => {
                 const fetchTransactions = async () => {
-                    console.log('🔍 TransactionTimeline: Starting fetch, alert=', alert);
-                    console.log('🔍 alert.customer_name=', alert?.customer_name);
-
                     if (!alert?.customer_name) {
-                        console.log('❌ No customer name found in alert, skipping fetch');
                         setLoading(false);
                         return;
                     }
 
                     const url = `/api/investigation/customer-transactions/${encodeURIComponent(alert.customer_name)}`;
-                    console.log('🚀 Making API call to:', url);
 
                     try {
                         setLoading(true);
                         const response = await fetch(url);
-                        console.log('📡 API Response status:', response.status, response.statusText);
 
                         if (response.ok) {
                             const data = await response.json();
-                            console.log('📊 API Response data:', data);
 
                             if (data.transactions && data.transactions.length > 0) {
-                                // Sort by date (already in mm-dd-yyyy format from API)
                                 const sorted = data.transactions.sort((a, b) => {
-                                    // Convert mm-dd-yyyy to Date for sorting
                                     const dateA = new Date(a.date);
                                     const dateB = new Date(b.date);
                                     return dateA - dateB;
                                 });
-                                setTransactions(sorted);
-                                console.log(`✅ SUCCESS: Loaded ${sorted.length} real transactions from database for timeline:`, sorted);
+                                // Take last 30 transactions
+                                const last30 = sorted.slice(-30);
+                                setTransactions(last30);
                             } else {
-                                console.log('❌ Empty response, using demo data');
                                 setTransactions(generateDemoTransactions());
                             }
                         } else {
-                            console.log(`❌ API call failed with status ${response.status}, using demo data`);
                             setTransactions(generateDemoTransactions());
                         }
                     } catch (err) {
-                        console.error('❌ CRITICAL ERROR fetching transactions:', err);
+                        console.error('Error fetching transactions:', err);
                         setTransactions(generateDemoTransactions());
                     } finally {
                         setLoading(false);
@@ -1198,21 +1210,74 @@
                 fetchTransactions();
             }, [alert]);
 
-            // Generate demo transactions as fallback
+            // Generate 30 demo transactions as fallback
             const generateDemoTransactions = () => {
-                const dates = [];
-                for (let i = 0; i < 12; i++) {
+                const txns = [];
+                for (let i = 29; i >= 0; i--) {
                     const date = new Date();
-                    date.setDate(date.getDate() - i * 2);
-                    dates.push({
+                    date.setDate(date.getDate() - i);
+                    txns.push({
                         date: date.toISOString().split('T')[0],
                         amount: Math.random() * 50000 + 5000,
                         type: ['WIRE_TRANSFER', 'ACH_TRANSFER', 'CASH_DEPOSIT'][Math.floor(Math.random() * 3)],
                         direction: Math.random() > 0.5 ? 'sent' : 'received',
-                        counterparty: `Entity ${i + 1}`
+                        counterparty: `Entity ${30 - i}`
                     });
                 }
-                return dates.reverse();
+                return txns;
+            };
+
+            // Format data for Recharts
+            const chartData = transactions.map(txn => {
+                let displayDate;
+                if (txn.date && txn.date.includes('-') && txn.date.split('-').length === 3) {
+                    const parts = txn.date.split('-');
+                    // Handle both yyyy-mm-dd and mm-dd-yyyy formats
+                    if (parts[0].length === 4) {
+                        displayDate = `${parts[1]}/${parts[2]}`;
+                    } else {
+                        displayDate = `${parts[0]}/${parts[1]}`;
+                    }
+                } else {
+                    const date = new Date(txn.date);
+                    displayDate = `${date.getMonth() + 1}/${date.getDate()}`;
+                }
+
+                return {
+                    date: displayDate,
+                    amount: Math.abs(txn.amount),
+                    type: txn.type,
+                    counterparty: txn.counterparty || '-',
+                    rawDate: txn.date
+                };
+            });
+
+            // Custom tooltip
+            const CustomTooltip = ({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                        <div style={{
+                            background: colors.bg.primary,
+                            border: `1px solid ${colors.border.subtle}`,
+                            borderRadius: '8px',
+                            padding: '0.75rem',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            minWidth: '160px'
+                        }}>
+                            <p style={{ margin: '0 0 0.25rem', color: colors.text.secondary, fontSize: '0.75rem' }}>
+                                {data.rawDate}
+                            </p>
+                            <p style={{ margin: '0 0 0.25rem', color: colors.accent.blue, fontSize: '1rem', fontWeight: '700', fontVariantNumeric: 'tabular-nums' }}>
+                                ${data.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            <p style={{ margin: 0, color: colors.text.muted, fontSize: '0.75rem' }}>
+                                {data.type.replace(/_/g, ' ')}
+                            </p>
+                        </div>
+                    );
+                }
+                return null;
             };
 
             if (loading) {
@@ -1233,36 +1298,10 @@
                 );
             }
 
-            // Calculate chart values
-            const amounts = transactions.map(txn => Math.abs(txn.amount));
-            const maxAmount = Math.max(...amounts, 10000);
-            const minAmount = Math.min(...amounts, 0);
-            const range = maxAmount - minAmount;
-
-            // Format dollar value
-            const formatDollar = (value) => {
-                return `$${(value / 1000).toFixed(0)}K`;
-            };
-
-            // Calculate Y-axis ticks
-            const yAxisTicks = [];
-            const tickCount = 5;
-            for (let i = 0; i <= tickCount; i++) {
-                yAxisTicks.push(minAmount + (range * i / tickCount));
-            }
-
-            // Pre-calculate all coordinates for consistent use
-            const dataPoints = transactions.map((txn, i) => {
-                const padding = 5; // Add padding percentage
-                const x = padding + (i / (transactions.length - 1)) * (100 - 2 * padding);
-                const y = padding + (1 - (Math.abs(txn.amount) - minAmount) / range) * (100 - 2 * padding);
-                return { x, y, txn, index: i };
-            });
-
-            return (
-                <div
-                    ref={containerRef}
-                    style={{
+            // Fallback if Recharts didn't load
+            if (!ResponsiveContainer) {
+                return (
+                    <div style={{
                         background: colors.bg.secondary,
                         borderRadius: '12px',
                         border: `1px solid ${colors.border.subtle}`,
@@ -1270,173 +1309,86 @@
                         height: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        position: 'relative'
-                    }}
-                >
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                    }}>
+                        <h4 style={{ color: colors.text.secondary }}>Chart library loading...</h4>
+                    </div>
+                );
+            }
+
+            return (
+                <div style={{
+                    background: colors.bg.secondary,
+                    borderRadius: '12px',
+                    border: `1px solid ${colors.border.subtle}`,
+                    padding: '1.5rem',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    minHeight: '350px'
+                }}>
                     {/* Header */}
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        marginBottom: '1rem'
+                        marginBottom: '1rem',
+                        flexShrink: 0
                     }}>
-                        <h4 style={{ margin: 0, color: colors.text.primary }}>Transaction Timeline</h4>
+                        <h4 style={{ margin: 0, color: colors.text.primary, letterSpacing: '-0.01em' }}>Transaction Timeline</h4>
                         <div style={{ fontSize: '0.75rem', color: colors.text.secondary }}>
-                            {transactions.length} transactions
+                            Last {chartData.length} transactions
                         </div>
                     </div>
 
-                    {transactions.length > 0 ? (
-                        <div style={{
-                            flex: 1,
-                            position: 'relative',
-                            minHeight: '300px',
-                            display: 'flex'
-                        }}>
-                            {/* Y-Axis Labels */}
-                            <div style={{
-                                width: '60px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                paddingRight: '10px',
-                                textAlign: 'right',
-                                fontSize: '0.75rem',
-                                color: colors.text.secondary
-                            }}>
-                                {yAxisTicks.slice().reverse().map((tick, i) => (
-                                    <div key={i} style={{ height: '20px' }}>
-                                        {formatDollar(tick)}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Chart Area */}
-                            <div style={{
-                                flex: 1,
-                                position: 'relative',
-                                borderLeft: `1px solid ${colors.border.subtle}`,
-                                borderBottom: `1px solid ${colors.border.subtle}`,
-                                background: `linear-gradient(180deg, ${colors.bg.primary}22 0%, ${colors.bg.primary}00 100%)`,
-                                borderRadius: '8px',
-                                overflow: 'hidden'
-                            }}>
-                                {/* Grid Lines */}
-                                <svg
-                                    width="100%"
-                                    height="100%"
-                                    viewBox="0 0 100 100"
-                                    preserveAspectRatio="xMidYMid meet"
-                                    style={{ position: 'absolute', top: 0, left: 0 }}
-                                >
-                                    {/* Horizontal grid lines */}
-                                    {yAxisTicks.map((tick, i) => {
-                                        const y = (1 - (tick - minAmount) / range) * 100;
-                                        return (
-                                            <line
-                                                key={`h-${i}`}
-                                                x1="0"
-                                                y1={y}
-                                                x2="100"
-                                                y2={y}
-                                                stroke={colors.border.subtle}
-                                                strokeWidth="0.5"
-                                                strokeDasharray="2,4"
-                                                opacity="0.3"
-                                            />
-                                        );
-                                    })}
-
-                                    {/* Vertical grid lines */}
-                                    {transactions.map((_, i) => {
-                                        const x = (i / (transactions.length - 1)) * 100;
-                                        return (
-                                            <line
-                                                key={`v-${i}`}
-                                                x1={x}
-                                                y1="0"
-                                                x2={x}
-                                                y2="100"
-                                                stroke={colors.border.subtle}
-                                                strokeWidth="0.5"
-                                                strokeDasharray="2,4"
-                                                opacity="0.3"
-                                            />
-                                        );
-                                    })}
-
-                                    {/* Line Chart Path */}
+                    {chartData.length > 0 ? (
+                        <div style={{ flex: 1, width: '100%', minHeight: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                                     <defs>
-                                        <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                            <stop offset="0%" stopColor={colors.accent.blue} stopOpacity="0.8" />
-                                            <stop offset="50%" stopColor={colors.accent.violet} stopOpacity="1" />
-                                            <stop offset="100%" stopColor={colors.accent.blue} stopOpacity="0.8" />
-                                        </linearGradient>
-                                        <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor={colors.accent.blue} stopOpacity="0.3" />
-                                            <stop offset="100%" stopColor={colors.accent.blue} stopOpacity="0.05" />
+                                        <linearGradient id="txnAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor={colors.accent.blue} stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor={colors.accent.blue} stopOpacity={0.02} />
                                         </linearGradient>
                                     </defs>
-
-                                    {/* Area under the line */}
-                                    <path
-                                        d={`M ${dataPoints.map(point => `${point.x},${point.y}`).join(' L ')} L 95,95 L 5,95 Z`}
-                                        fill="url(#areaGradient)"
+                                    <CartesianGrid
+                                        strokeDasharray="3 6"
+                                        stroke={colors.border.subtle}
+                                        opacity={0.3}
+                                        vertical={false}
                                     />
-
-                                    {/* Main line */}
-                                    <polyline
-                                        points={dataPoints.map(point => `${point.x},${point.y}`).join(' ')}
-                                        fill="none"
-                                        stroke="url(#lineGradient)"
-                                        strokeWidth="1"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        vectorEffect="non-scaling-stroke"
+                                    <XAxis
+                                        dataKey="date"
+                                        tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                                        tickLine={false}
+                                        axisLine={{ stroke: colors.border.subtle }}
+                                        interval={chartData.length > 15 ? Math.floor(chartData.length / 8) : 0}
+                                        dy={4}
                                     />
-
-                                    {/* Data points with hover */}
-                                    {dataPoints.map(({ x, y, txn, index }) => (
-                                            <g key={index}>
-                                                <circle
-                                                    cx={x}
-                                                    cy={y}
-                                                    r={hoveredPoint === index ? "1.2" : "0.8"}
-                                                    fill={colors.accent.blue}
-                                                    stroke="white"
-                                                    strokeWidth="0.3"
-                                                    style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                                                    onMouseEnter={() => setHoveredPoint(index)}
-                                                    onMouseLeave={() => setHoveredPoint(null)}
-                                                />
-                                                {hoveredPoint === index && (
-                                                    <g>
-                                                        <rect
-                                                            x={x - 15}
-                                                            y={y - 8}
-                                                            width="30"
-                                                            height="5"
-                                                            fill={colors.bg.primary}
-                                                            stroke={colors.border.subtle}
-                                                            strokeWidth="0.2"
-                                                            rx="1"
-                                                        />
-                                                        <text
-                                                            x={x}
-                                                            y={y - 5}
-                                                            textAnchor="middle"
-                                                            fill={colors.text.primary}
-                                                            fontSize="1.5"
-                                                            fontWeight="600"
-                                                        >
-                                                            ${Math.abs(txn.amount).toLocaleString()}
-                                                        </text>
-                                                    </g>
-                                                )}
-                                            </g>
-                                        ))}
-                                </svg>
-                            </div>
+                                    <YAxis
+                                        tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(v) => v >= 1000 ? `$${(v / 1000).toFixed(0)}K` : `$${v}`}
+                                        width={55}
+                                    />
+                                    <RechartsTooltip
+                                        content={<CustomTooltip />}
+                                        cursor={{ stroke: colors.accent.blue, strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.5 }}
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="amount"
+                                        stroke={colors.accent.blue}
+                                        strokeWidth={2}
+                                        fill="url(#txnAreaGradient)"
+                                        dot={chartData.length <= 15 ? { r: 3, fill: colors.accent.blue, stroke: colors.bg.secondary, strokeWidth: 2 } : false}
+                                        activeDot={{ r: 5, fill: colors.accent.blue, stroke: 'white', strokeWidth: 2 }}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         </div>
                     ) : (
                         <div style={{
@@ -1449,40 +1401,10 @@
                             No transaction data available
                         </div>
                     )}
-
-                    {/* X-axis labels */}
-                    {transactions.length > 0 && (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            marginTop: '8px',
-                            marginLeft: '70px',
-                            fontSize: '0.7rem',
-                            color: colors.text.secondary
-                        }}>
-                            {transactions.map((txn, i) => {
-                                // Only show every other label if more than 7 transactions
-                                if (transactions.length > 7 && i % 2 !== 0) return null;
-
-                                let displayDate;
-                                if (txn.date.includes('-') && txn.date.split('-').length === 3) {
-                                    const parts = txn.date.split('-');
-                                    displayDate = `${parts[0]}/${parts[1]}`;
-                                } else {
-                                    const date = new Date(txn.date);
-                                    displayDate = `${date.getMonth() + 1}/${date.getDate()}`;
-                                }
-                                return (
-                                    <span key={i} style={{ textAlign: 'center' }}>
-                                        {displayDate}
-                                    </span>
-                                );
-                            }).filter(Boolean)}
-                        </div>
-                    )}
                 </div>
             );
         };
+
 
         // Neo4j Network Graph Component with Live Data
         const NetworkGraph = ({ alert }) => {
@@ -1629,7 +1551,7 @@
                                            type === 'Transaction' ? 60 : 50;
                                 },
                                 'border-width': (ele) => ele.data('type') === 'Customer' ? 3 : 0,
-                                'border-color': '#fbbf24',
+                                'border-color': '#D4AF37',
                                 'overlay-padding': '6px'
                             }
                         },
@@ -1637,32 +1559,32 @@
                             selector: 'edge',
                             style: {
                                 'width': 2,
-                                'line-color': '#64748b',
-                                'target-arrow-color': '#64748b',
+                                'line-color': '#CBD5E1',
+                                'target-arrow-color': '#CBD5E1',
                                 'target-arrow-shape': 'triangle',
                                 'curve-style': 'bezier',
                                 'label': 'data(label)',
                                 'font-size': '10px',
                                 'text-rotation': 'autorotate',
-                                'text-background-color': '#1e293b',
+                                'text-background-color': '#FFFFFF',
                                 'text-background-opacity': 0.8,
                                 'text-background-padding': '2px',
-                                'color': '#94a3b8'
+                                'color': '#64748B'
                             }
                         },
                         {
                             selector: 'node:selected',
                             style: {
                                 'border-width': 4,
-                                'border-color': '#3b82f6',
-                                'overlay-color': '#3b82f6',
+                                'border-color': '#1D4ED8',
+                                'overlay-color': '#1D4ED8',
                                 'overlay-opacity': 0.2
                             }
                         },
                         {
                             selector: 'node:hover',
                             style: {
-                                'overlay-color': '#3b82f6',
+                                'overlay-color': '#1D4ED8',
                                 'overlay-opacity': 0.1
                             }
                         }
@@ -1710,8 +1632,21 @@
                     }
                 }
 
+                // ResizeObserver to handle container resizing (e.g. chat panel toggle)
+                let resizeObserver;
+                if (graphContainerRef.current) {
+                    resizeObserver = new ResizeObserver(() => {
+                        if (cyRef.current) {
+                            cyRef.current.resize();
+                            cyRef.current.fit(null, 20);
+                        }
+                    });
+                    resizeObserver.observe(graphContainerRef.current);
+                }
+
                 // Cleanup on unmount
                 return () => {
+                    if (resizeObserver) resizeObserver.disconnect();
                     if (cyRef.current) {
                         try {
                             cyRef.current.destroy();
@@ -2163,7 +2098,7 @@
                         fontSize: '0.75rem',
                         color: colors.text.secondary
                     }}>
-                        <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>🔄 Agent Activity:</div>
+                        <div style={{ fontWeight: '600', marginBottom: '0.25rem', color: colors.accent.blue }}>Agent Activity</div>
                         {activities.map((activity, i) => (
                             <div key={i} style={{ marginBottom: '0.25rem' }}>
                                 • {activity.agent || 'Agent'}: {activity.action || activity.tool || activity.message || 'Processing...'}
@@ -2228,7 +2163,7 @@
                         }}
                     >
                         <h4 style={{ margin: 0, color: colors.text.primary }}>
-                            🤖 AI Investigation Assistant
+                            AI Investigation Assistant
                             {isStreaming && <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>🔄 Analyzing...</span>}
                         </h4>
                         <span style={{ color: colors.text.secondary }}>
@@ -2257,7 +2192,7 @@
                                     }}>
                                         <div style={{ fontSize: '0.75rem', color: colors.text.secondary, marginBottom: '0.25rem' }}>
                                             {message.role === 'user' ? 'You' : 'AI Assistant'}
-                                            {message.isStreaming && <span style={{ marginLeft: '0.5rem' }}>🔄</span>}
+                                            {message.isStreaming && <span style={{ marginLeft: '0.5rem', display: 'inline-block', width: '12px', height: '12px', border: '2px solid ' + colors.accent.blue + '40', borderTop: '2px solid ' + colors.accent.blue, borderRadius: '50%', animation: 'spin 1s linear infinite', verticalAlign: 'middle' }}></span>}
                                             {message.hasError && <span style={{ marginLeft: '0.5rem', color: colors.accent.rose }}>⚠️</span>}
                                         </div>
 
@@ -2277,6 +2212,8 @@
                                             dangerouslySetInnerHTML={{
                                                 __html: message.content
                                                     ? marked.parse(message.content, { breaks: true, gfm: true })
+                                                        .replace(/<table>/g, '<div class="table-wrapper"><table>')
+                                                        .replace(/<\/table>/g, '</table></div>')
                                                     : message.isStreaming ? '<em>Generating response...</em>' : ''
                                             }}
                                         ></div>
@@ -2284,24 +2221,6 @@
                                         {/* Show typing indicator for empty streaming messages */}
                                         {message.isStreaming && !message.content && <TypingIndicator />}
 
-                                        {/* Show confidence and recommendation for completed messages */}
-                                        {!message.isStreaming && message.confidence_score && (
-                                            <div style={{
-                                                marginTop: '0.5rem',
-                                                padding: '0.5rem',
-                                                background: colors.bg.primary,
-                                                borderRadius: '4px',
-                                                fontSize: '0.75rem',
-                                                color: colors.text.secondary
-                                            }}>
-                                                <div>Confidence: {Math.round(message.confidence_score * 100)}%</div>
-                                                {message.recommendation && (
-                                                    <div style={{ marginTop: '0.25rem' }}>
-                                                        Recommendation: <strong>{message.recommendation.replace(/_/g, ' ')}</strong>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
                                     </div>
                                 ))}
                                 <div ref={messagesEndRef} />
@@ -2446,224 +2365,34 @@
             );
         };
 
-        // Executive Dashboard Component - Always Dark Mode
+        // Executive Dashboard Component - Simple iframe with Genie + Dark Mode support
         const ExecutiveDashboard = ({ dashboardData }) => {
-            const containerRef = React.useRef(null);
-            const dashboardRef = React.useRef(null);
-
-            const [dashboardState, setDashboardState] = React.useState({
-                loading: true,
-                error: null,
-                initialized: false
-            });
+            const [wsInfo, setWsInfo] = React.useState(null);
+            const [loading, setLoading] = React.useState(true);
 
             React.useEffect(() => {
-                let mounted = true;
-                let dashboard = null;
-
-                const initializeDashboard = async () => {
-                    // Always use dark mode
+                const loadDashboard = async () => {
                     try {
-                        console.log('🌙 Loading AIBI client for dark mode...');
-                        setDashboardState({ loading: true, error: null, initialized: false });
-
-                        // Fetch workspace info and token from backend
-                        console.log('🔑 Fetching workspace info and user token from backend...');
-                        const [tokenResponse, wsResponse] = await Promise.all([
-                            fetch('/api/auth/token'),
-                            fetch('/api/auth/workspace-info')
-                        ]);
-                        const tokenData = await tokenResponse.json();
-                        const wsInfo = await wsResponse.json();
-
-                        console.log('Token response:', {
-                            authenticated: tokenData.authenticated,
-                            type: tokenData.type,
-                            hasToken: !!tokenData.token,
-                            warning: tokenData.warning
-                        });
-
-                        if (!tokenData.authenticated || !tokenData.token) {
-                            throw new Error('No authentication token available. Please ensure you are logged in.');
-                        }
-
-                        // Check for token type and warn if not service principal
-                        if (tokenData.type !== 'service_principal_scoped' && tokenData.type !== 'service_principal') {
-                            console.warn('⚠️ Using user token - dark mode may not work due to missing embedding scopes');
-                            console.warn('💡 To fix: Ensure service principal has dashboard access');
-
-                            // Show warning message to user
-                            const warningDiv = document.createElement('div');
-                            warningDiv.style.cssText = `
-                                position: absolute;
-                                top: 10px;
-                                left: 50%;
-                                transform: translateX(-50%);
-                                background: #ff9800;
-                                color: white;
-                                padding: 10px 20px;
-                                border-radius: 5px;
-                                z-index: 1000;
-                                font-size: 14px;
-                            `;
-                            warningDiv.innerHTML = '⚠️ Dark mode requires service principal configuration. Contact your admin.';
-                            containerRef.current.appendChild(warningDiv);
-
-                            // Auto-hide after 5 seconds
-                            setTimeout(() => warningDiv.remove(), 5000);
-                        }
-
-                        // Dynamically import AIBI client as ES module from CDN
-                        console.log('📦 Importing AIBI client from CDN...');
-
-                        // Create a script tag to load the module
-                        const scriptId = 'aibi-dashboard-loader';
-
-                        // Remove any existing script
-                        const existingScript = document.getElementById(scriptId);
-                        if (existingScript) {
-                            existingScript.remove();
-                        }
-
-                        // Create new script tag
-                        const script = document.createElement('script');
-                        script.id = scriptId;
-                        script.type = 'module';
-                        script.innerHTML = `
-                            import { DatabricksDashboard } from 'https://cdn.jsdelivr.net/npm/@databricks/aibi-client@1.0.1-alpha.0/+esm';
-
-                            window.initDarkModeDashboard = async function(config) {
-                                try {
-                                    console.log('🌙 Creating dashboard with config:', {
-                                        ...config,
-                                        token: config.token ? '***hidden***' : 'none'
-                                    });
-
-                                    const dashboard = new DatabricksDashboard(config);
-                                    await dashboard.initialize();
-
-                                    console.log('✅ Dashboard initialized successfully!');
-                                    return dashboard;
-                                } catch (error) {
-                                    console.error('Failed to initialize dashboard:', error);
-                                    throw error;
-                                }
-                            };
-
-                            // Signal that module is loaded
-                            window.aibiClientLoaded = true;
-                            console.log('✅ AIBI client module loaded and ready');
-                        `;
-
-                        document.head.appendChild(script);
-
-                        // Wait for the module to load
-                        let attempts = 0;
-                        while (!window.aibiClientLoaded && attempts < 50) {
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                            attempts++;
-                        }
-
-                        if (!window.initDarkModeDashboard) {
-                            throw new Error('AIBI client module failed to load after 5 seconds');
-                        }
-
-                        // Configuration for the dashboard (fetched dynamically from backend)
-                        const config = {
-                            instanceUrl: wsInfo.workspace_url,
-                            workspaceId: wsInfo.workspace_id,
-                            dashboardId: wsInfo.dashboard_id,
-                            container: containerRef.current,
-                            colorScheme: 'dark', // Force dark mode
-                            token: tokenData.token, // Use the OAuth token from headers
-                            // Try to bypass domain restrictions
-                            getNewToken: async () => {
-                                const response = await fetch('/api/auth/token');
-                                const data = await response.json();
-                                return data.token;
-                            }
-                        };
-
-                        console.log('🌙 Initializing dashboard in dark mode...');
-                        dashboard = await window.initDarkModeDashboard(config);
-
-                        if (mounted) {
-                            dashboardRef.current = dashboard;
-                            setDashboardState({
-                                loading: false,
-                                error: null,
-                                initialized: true
-                            });
-                            console.log('✅ Dark mode dashboard ready!');
-                        }
-
+                        // Fetch workspace info from backend
+                        const response = await fetch('/api/auth/workspace-info');
+                        const info = await response.json();
+                        setWsInfo(info);
+                        setLoading(false);
                     } catch (error) {
-                        console.error('Dashboard initialization error:', error);
-
-                        // Fallback to direct iframe embedding if AIBI client fails
-                        if (error.message && error.message.includes('domain') || error.message.includes('403')) {
-                            console.warn('⚠️ Domain not allowed for embedding. Falling back to direct iframe...');
-
-                            // Use the standard embed URL with dark theme
-                            const embedUrl = `${wsInfo.workspace_url}/embed/dashboardsv3/${wsInfo.dashboard_id}?o=${wsInfo.workspace_id}`;
-
-                            const iframe = document.createElement('iframe');
-                            iframe.src = embedUrl;
-                            iframe.style.width = '100%';
-                            iframe.style.height = '100%';
-                            iframe.style.border = 'none';
-                            iframe.style.filter = 'invert(1) hue-rotate(180deg)'; // CSS hack for dark mode
-                            iframe.title = 'Executive Dashboard (Dark Mode Fallback)';
-
-                            containerRef.current.innerHTML = '';
-                            containerRef.current.appendChild(iframe);
-
-                            setDashboardState({
-                                loading: false,
-                                error: 'Using CSS filter for dark mode (domain not approved for native dark mode)',
-                                initialized: true
-                            });
-                        } else if (mounted) {
-                            setDashboardState({
-                                loading: false,
-                                error: error.message || 'Failed to initialize dashboard',
-                                initialized: false
-                            });
-                        }
+                        console.error('Failed to load workspace info:', error);
+                        setLoading(false);
                     }
                 };
-
-                // Small delay to ensure DOM is ready
-                const timer = setTimeout(() => {
-                    if (containerRef.current) {
-                        initializeDashboard();
-                    }
-                }, 200);
-
-                // Cleanup function
-                return () => {
-                    mounted = false;
-                    clearTimeout(timer);
-
-                    if (dashboardRef.current && typeof dashboardRef.current.destroy === 'function') {
-                        try {
-                            dashboardRef.current.destroy();
-                            console.log('Dashboard destroyed');
-                        } catch (e) {
-                            console.error('Error destroying dashboard:', e);
-                        }
-                    }
-                };
-            }, []); // Run once on mount
+                loadDashboard();
+            }, []);
 
             return (
                 <div style={{
                     padding: '0.5rem',
-                    height: 'calc(100vh - 60px)',
+                    height: 'calc(100vh - 52px)',
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
-                    {/* Dashboard Container - Full Page */}
                     <div style={{
                         width: '100%',
                         flex: 1,
@@ -2672,8 +2401,7 @@
                         overflow: 'hidden',
                         position: 'relative'
                     }}>
-                        {/* Loading State */}
-                        {dashboardState.loading && (
+                        {loading && (
                             <div style={{
                                 position: 'absolute',
                                 top: '50%',
@@ -2692,51 +2420,27 @@
                                     margin: '0 auto 1rem'
                                 }} />
                                 <p style={{ color: colors.text.primary, fontSize: '1.1rem', fontWeight: '500' }}>
-                                    Initializing Dark Mode
+                                    Loading Dashboard
                                 </p>
                                 <p style={{ color: colors.text.secondary, fontSize: '0.9rem' }}>
-                                    🌙 Requires active Databricks session...
-                                </p>
-                                <p style={{ color: colors.text.secondary, fontSize: '0.75rem', marginTop: '0.5rem' }}>
-                                    Make sure you're logged into Databricks
+                                    With Genie support enabled!
                                 </p>
                             </div>
                         )}
 
-                        {/* Show error message if dark mode failed */}
-                        {dashboardState.error && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '1rem',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                background: `${colors.accent.amber}20`,
-                                border: `1px solid ${colors.accent.amber}`,
-                                borderRadius: '8px',
-                                padding: '0.5rem 1rem',
-                                zIndex: 10
-                            }}>
-                                <p style={{
-                                    color: colors.accent.amber,
-                                    fontSize: '0.875rem',
-                                    margin: 0,
-                                    fontWeight: '500'
-                                }}>
-                                    ⚠️ {dashboardState.error}
-                                </p>
-                            </div>
+                        {wsInfo && !loading && (
+                            <iframe
+                                src={`${wsInfo.workspace_url}/embed/dashboardsv3/${wsInfo.dashboard_id}?o=${wsInfo.workspace_id}`}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none',
+                                    display: loading ? 'none' : 'block'
+                                }}
+                                title="Executive Dashboard"
+                                allowFullScreen
+                            />
                         )}
-
-                        {/* AIBI Dashboard Container - Always Dark Mode */}
-                        <div
-                            ref={containerRef}
-                            id="databricks-dashboard-container"
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                display: dashboardState.loading ? 'none' : 'block'
-                            }}
-                        />
                     </div>
                 </div>
             );
@@ -2787,7 +2491,7 @@
                                     transition: 'all 0.3s ease',
                                     position: 'relative',
                                     overflow: 'hidden',
-                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)'
+                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)'
                                 }}
                                 onClick={index === 2 ? handleInvestigationTimeClick : null}
                                 onMouseOver={(e) => {
@@ -2797,13 +2501,13 @@
                                     e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '15 0%, ' + kpiColor + '25 50%, ' + kpiColor + '15 100%)';
                                     e.target.style.borderColor = kpiColor;
                                     e.target.style.transform = 'translateY(-4px) scale(1.02)';
-                                    e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15), 0 4px 10px ' + kpiColor + '30, inset 0 1px 0 rgba(255,255,255,0.2)';
+                                    e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15), 0 4px 10px ' + kpiColor + '30, inset 0 1px 0 rgba(0,0,0,0.05)';
                                 }}
                                 onMouseOut={(e) => {
                                     e.target.style.background = 'linear-gradient(135deg, ' + colors.bg.secondary + ' 0%, ' + colors.bg.tertiary + ' 50%, ' + colors.bg.secondary + ' 100%)';
                                     e.target.style.borderColor = colors.border.subtle;
                                     e.target.style.transform = 'translateY(0px) scale(1)';
-                                    e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
+                                    e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)';
                                 }}
                             >
                                 <div style={{ color: colors.text.secondary, fontSize: '0.875rem', marginBottom: '0.5rem', pointerEvents: 'none' }}>
@@ -2975,73 +2679,75 @@
                         <div
                             style={{
                                 background: colors.bg.primary,
-                                border: `2px solid ${colors.border.subtle}`,
-                                borderRadius: '12px',
-                                padding: '2rem',
-                                maxWidth: '500px',
+                                border: `1px solid ${colors.border.subtle}`,
+                                borderRadius: '10px',
+                                padding: '1.25rem 1.5rem',
+                                maxWidth: '380px',
                                 width: '90%',
-                                boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
                                 position: 'relative'
                             }}
                             onClick={(e) => e.stopPropagation()}
                         >
-                            {/* Close button */}
-                            <button
-                                onClick={onClose}
-                                style={{
-                                    position: 'absolute',
-                                    top: '1rem',
-                                    right: '1rem',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: colors.text.secondary,
-                                    fontSize: '1.5rem',
-                                    cursor: 'pointer',
-                                    padding: '0.25rem',
-                                    borderRadius: '4px',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.target.style.background = colors.bg.tertiary;
-                                    e.target.style.color = colors.text.primary;
-                                }}
-                                onMouseOut={(e) => {
-                                    e.target.style.background = 'transparent';
-                                    e.target.style.color = colors.text.secondary;
-                                }}
-                            >
-                                ×
-                            </button>
-
-                            {/* Title */}
-                            <h3 style={{
-                                color: colors.text.primary,
-                                marginBottom: '1.5rem',
-                                fontSize: '1.25rem',
-                                fontWeight: '600'
-                            }}>
-                                Risk Score Explanation
-                            </h3>
+                            {/* Header row with title and close */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h3 style={{
+                                    color: colors.text.primary,
+                                    margin: 0,
+                                    fontSize: '1rem',
+                                    fontWeight: '600',
+                                    letterSpacing: '-0.01em'
+                                }}>
+                                    Risk Score Explanation
+                                </h3>
+                                <button
+                                    onClick={onClose}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: colors.text.secondary,
+                                        cursor: 'pointer',
+                                        padding: '2px',
+                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.background = colors.bg.tertiary;
+                                        e.currentTarget.style.color = colors.text.primary;
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = colors.text.secondary;
+                                    }}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{pointerEvents:'none'}}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
+                            </div>
 
                             {/* Content */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <div style={{
                                     background: colors.bg.secondary,
-                                    padding: '1rem',
+                                    padding: '0.75rem 1rem',
                                     borderRadius: '8px',
                                     border: `1px solid ${colors.border.subtle}`
                                 }}>
                                     <div style={{
                                         color: colors.text.secondary,
-                                        fontSize: '0.875rem',
-                                        marginBottom: '0.5rem',
-                                        fontWeight: '500'
+                                        fontSize: '0.75rem',
+                                        marginBottom: '0.25rem',
+                                        fontWeight: '600',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.03em'
                                     }}>
-                                        Alert Triggering Rule:
+                                        Alert Triggering Rule
                                     </div>
                                     <div style={{
                                         color: colors.text.primary,
-                                        fontSize: '1rem',
+                                        fontSize: '0.9rem',
                                         lineHeight: '1.5'
                                     }}>
                                         {rule}
@@ -3050,22 +2756,25 @@
 
                                 <div style={{
                                     background: colors.bg.secondary,
-                                    padding: '1rem',
+                                    padding: '0.75rem 1rem',
                                     borderRadius: '8px',
                                     border: `1px solid ${colors.border.subtle}`
                                 }}>
                                     <div style={{
                                         color: colors.text.secondary,
-                                        fontSize: '0.875rem',
-                                        marginBottom: '0.5rem',
-                                        fontWeight: '500'
+                                        fontSize: '0.75rem',
+                                        marginBottom: '0.25rem',
+                                        fontWeight: '600',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.03em'
                                     }}>
-                                        ML Model Risk Score:
+                                        ML Model Risk Score
                                     </div>
                                     <div style={{
                                         color: colors.accent.blue,
-                                        fontSize: '1.5rem',
-                                        fontWeight: '700'
+                                        fontSize: '1.25rem',
+                                        fontWeight: '700',
+                                        fontVariantNumeric: 'tabular-nums'
                                     }}>
                                         {score}
                                     </div>
@@ -3094,8 +2803,8 @@
             }
 
             return (
-                <div style={{ padding: '2rem' }}>
-                    <h2 style={{ color: colors.text.primary, marginBottom: '2rem' }}>
+                <div style={{ padding: '1.25rem 2rem' }}>
+                    <h2 style={{ color: colors.text.primary, marginTop: 0, marginBottom: '1rem' }}>
                         My Queue - {selectedAnalyst}
                     </h2>
 
@@ -3116,32 +2825,32 @@
                                 transition: 'all 0.3s ease',
                                 position: 'relative',
                                 overflow: 'hidden',
-                                boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)'
+                                boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)'
                             }}
                             onMouseOver={(e) => {
-                                const kpiColor = colors.kpi.negative;
-                                e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '15 0%, ' + kpiColor + '25 50%, ' + kpiColor + '15 100%)';
+                                const kpiColor = '#1D4ED8';
+                                e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '08 0%, ' + kpiColor + '12 50%, ' + kpiColor + '08 100%)';
                                 e.target.style.borderColor = kpiColor;
                                 e.target.style.transform = 'translateY(-4px) scale(1.02)';
-                                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15), 0 4px 10px ' + kpiColor + '30, inset 0 1px 0 rgba(255,255,255,0.2)';
+                                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.08), 0 4px 10px ' + kpiColor + '18, inset 0 1px 0 rgba(0,0,0,0.03)';
                             }}
                             onMouseOut={(e) => {
                                 e.target.style.background = 'linear-gradient(135deg, ' + colors.bg.secondary + ' 0%, ' + colors.bg.tertiary + ' 50%, ' + colors.bg.secondary + ' 100%)';
                                 e.target.style.borderColor = colors.border.subtle;
                                 e.target.style.transform = 'translateY(0px) scale(1)';
-                                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
+                                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)';
                             }}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
                                 <span style={{
                                     width: '8px',
                                     height: '8px',
-                                    background: colors.kpi.negative,
+                                    background: '#BD2B26',
                                     borderRadius: '50%'
                                 }}></span>
                                 <span style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>Critical</span>
                             </div>
-                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none' }}>
+                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none', textAlign: 'center' }}>
                                 {analystData.alerts?.filter(a => a.priority === 'critical').length || 0}
                             </div>
                         </div>
@@ -3155,32 +2864,32 @@
                                 transition: 'all 0.3s ease',
                                 position: 'relative',
                                 overflow: 'hidden',
-                                boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)'
+                                boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)'
                             }}
                             onMouseOver={(e) => {
-                                const kpiColor = colors.status.escalated;
-                                e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '15 0%, ' + kpiColor + '25 50%, ' + kpiColor + '15 100%)';
+                                const kpiColor = '#1D4ED8';
+                                e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '08 0%, ' + kpiColor + '12 50%, ' + kpiColor + '08 100%)';
                                 e.target.style.borderColor = kpiColor;
                                 e.target.style.transform = 'translateY(-4px) scale(1.02)';
-                                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15), 0 4px 10px ' + kpiColor + '30, inset 0 1px 0 rgba(255,255,255,0.2)';
+                                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.08), 0 4px 10px ' + kpiColor + '18, inset 0 1px 0 rgba(0,0,0,0.03)';
                             }}
                             onMouseOut={(e) => {
                                 e.target.style.background = 'linear-gradient(135deg, ' + colors.bg.secondary + ' 0%, ' + colors.bg.tertiary + ' 50%, ' + colors.bg.secondary + ' 100%)';
                                 e.target.style.borderColor = colors.border.subtle;
                                 e.target.style.transform = 'translateY(0px) scale(1)';
-                                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
+                                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)';
                             }}
                         >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', pointerEvents: 'none' }}>
                                 <span style={{
                                     width: '8px',
                                     height: '8px',
-                                    background: colors.status.escalated,
+                                    background: '#D4AF37',
                                     borderRadius: '50%'
                                 }}></span>
                                 <span style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>High</span>
                             </div>
-                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none' }}>
+                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none', textAlign: 'center' }}>
                                 {analystData.alerts?.filter(a => a.priority === 'high').length || 0}
                             </div>
                         </div>
@@ -3194,24 +2903,24 @@
                                 transition: 'all 0.3s ease',
                                 position: 'relative',
                                 overflow: 'hidden',
-                                boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)'
+                                boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)'
                             }}
                             onMouseOver={(e) => {
-                                const kpiColor = colors.status.open;
-                                e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '15 0%, ' + kpiColor + '25 50%, ' + kpiColor + '15 100%)';
+                                const kpiColor = '#1D4ED8';
+                                e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '08 0%, ' + kpiColor + '12 50%, ' + kpiColor + '08 100%)';
                                 e.target.style.borderColor = kpiColor;
                                 e.target.style.transform = 'translateY(-4px) scale(1.02)';
-                                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15), 0 4px 10px ' + kpiColor + '30, inset 0 1px 0 rgba(255,255,255,0.2)';
+                                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.08), 0 4px 10px ' + kpiColor + '18, inset 0 1px 0 rgba(0,0,0,0.03)';
                             }}
                             onMouseOut={(e) => {
                                 e.target.style.background = 'linear-gradient(135deg, ' + colors.bg.secondary + ' 0%, ' + colors.bg.tertiary + ' 50%, ' + colors.bg.secondary + ' 100%)';
                                 e.target.style.borderColor = colors.border.subtle;
                                 e.target.style.transform = 'translateY(0px) scale(1)';
-                                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
+                                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)';
                             }}
                         >
-                            <div style={{ color: colors.text.secondary, fontSize: '0.875rem', pointerEvents: 'none' }}>Total Alerts</div>
-                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none' }}>
+                            <div style={{ color: colors.text.secondary, fontSize: '0.875rem', pointerEvents: 'none', textAlign: 'center' }}>Total Alerts</div>
+                            <div style={{ color: colors.text.primary, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none', textAlign: 'center' }}>
                                 {analystData.stats?.total_alerts || 0}
                             </div>
                         </div>
@@ -3225,24 +2934,24 @@
                                 transition: 'all 0.3s ease',
                                 position: 'relative',
                                 overflow: 'hidden',
-                                boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)'
+                                boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)'
                             }}
                             onMouseOver={(e) => {
-                                const kpiColor = colors.kpi.positive;
-                                e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '15 0%, ' + kpiColor + '25 50%, ' + kpiColor + '15 100%)';
+                                const kpiColor = '#1D4ED8';
+                                e.target.style.background = 'linear-gradient(135deg, ' + kpiColor + '08 0%, ' + kpiColor + '12 50%, ' + kpiColor + '08 100%)';
                                 e.target.style.borderColor = kpiColor;
                                 e.target.style.transform = 'translateY(-4px) scale(1.02)';
-                                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15), 0 4px 10px ' + kpiColor + '30, inset 0 1px 0 rgba(255,255,255,0.2)';
+                                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.08), 0 4px 10px ' + kpiColor + '18, inset 0 1px 0 rgba(0,0,0,0.03)';
                             }}
                             onMouseOut={(e) => {
                                 e.target.style.background = 'linear-gradient(135deg, ' + colors.bg.secondary + ' 0%, ' + colors.bg.tertiary + ' 50%, ' + colors.bg.secondary + ' 100%)';
                                 e.target.style.borderColor = colors.border.subtle;
                                 e.target.style.transform = 'translateY(0px) scale(1)';
-                                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
+                                e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)';
                             }}
                         >
-                            <div style={{ color: colors.text.secondary, fontSize: '0.875rem', pointerEvents: 'none' }}>New Alerts</div>
-                            <div style={{ color: colors.kpi.negative, fontSize: '2rem', fontWeight: '700', pointerEvents: 'none' }}>
+                            <div style={{ color: colors.text.secondary, fontSize: '0.875rem', pointerEvents: 'none', textAlign: 'center' }}>New Alerts</div>
+                            <div style={{ color: '#1D4ED8', fontSize: '2rem', fontWeight: '700', pointerEvents: 'none', textAlign: 'center' }}>
                                 {analystData.stats?.new_alerts || 0}
                             </div>
                         </div>
@@ -3557,12 +3266,12 @@
                 };
             }, [streamCleanup]);
 
-            // Key metrics for the alert
+            // Key metrics for the alert — unified blue/gold palette
             const keyMetrics = [
-                { label: 'Total Amount', value: alert.total_amount, color: colors.accent.blue },
-                { label: 'Transactions', value: '7', color: colors.accent.emerald },
-                { label: 'Time Window', value: '9 days', color: colors.accent.amber },
-                { label: 'CTR Breaches', value: '0', color: colors.accent.rose }
+                { label: 'Total Amount', value: alert.total_amount, color: '#003366' },
+                { label: 'Transactions', value: '7', color: '#1D4ED8' },
+                { label: 'Time Window', value: '9 days', color: '#0D3B66' },
+                { label: 'CTR Breaches', value: '0', color: '#1A2B45' }
             ];
 
 
@@ -3636,126 +3345,46 @@
                             margin: '0 1rem',
                             marginTop: '0.5rem'
                         }}>
-                            <button
-                                onClick={() => setDocumentPopup({ isOpen: true, type: 'edd' })}
-                                style={{
-                                    background: `linear-gradient(135deg, ${colors.bg.secondary} 0%, ${colors.bg.tertiary} 100%)`,
-                                    color: colors.text.primary,
-                                    border: `2px solid ${colors.accent.blue}40`,
-                                    padding: '0.75rem 1.5rem',
-                                    borderRadius: '10px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.95rem',
-                                    fontWeight: '600',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.15)',
-                                    minWidth: '100px'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.target.style.background = `linear-gradient(135deg, ${colors.accent.blue}20 0%, ${colors.accent.blue}30 100%)`;
-                                    e.target.style.borderColor = colors.accent.blue;
-                                    e.target.style.transform = 'translateY(-2px)';
-                                    e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.target.style.background = `linear-gradient(135deg, ${colors.bg.secondary} 0%, ${colors.bg.tertiary} 100%)`;
-                                    e.target.style.borderColor = `${colors.accent.blue}40`;
-                                    e.target.style.transform = 'translateY(0)';
-                                    e.target.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.15)';
-                                }}
-                            >
-                                EDD
-                            </button>
-                            <button
-                                onClick={() => setDocumentPopup({ isOpen: true, type: 'media' })}
-                                style={{
-                                    background: `linear-gradient(135deg, ${colors.bg.secondary} 0%, ${colors.bg.tertiary} 100%)`,
-                                    color: colors.text.primary,
-                                    border: `2px solid ${colors.accent.emerald}40`,
-                                    padding: '0.75rem 1.5rem',
-                                    borderRadius: '10px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.95rem',
-                                    fontWeight: '600',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 2px 8px rgba(34, 197, 94, 0.15)',
-                                    minWidth: '140px'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.target.style.background = `linear-gradient(135deg, ${colors.accent.emerald}20 0%, ${colors.accent.emerald}30 100%)`;
-                                    e.target.style.borderColor = colors.accent.emerald;
-                                    e.target.style.transform = 'translateY(-2px)';
-                                    e.target.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.3)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.target.style.background = `linear-gradient(135deg, ${colors.bg.secondary} 0%, ${colors.bg.tertiary} 100%)`;
-                                    e.target.style.borderColor = `${colors.accent.emerald}40`;
-                                    e.target.style.transform = 'translateY(0)';
-                                    e.target.style.boxShadow = '0 2px 8px rgba(34, 197, 94, 0.15)';
-                                }}
-                            >
-                                Media Screening
-                            </button>
-                            <button
-                                onClick={() => setDocumentPopup({ isOpen: true, type: 'sar' })}
-                                style={{
-                                    background: `linear-gradient(135deg, ${colors.bg.secondary} 0%, ${colors.bg.tertiary} 100%)`,
-                                    color: colors.text.primary,
-                                    border: `2px solid ${colors.accent.amber}40`,
-                                    padding: '0.75rem 1.5rem',
-                                    borderRadius: '10px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.95rem',
-                                    fontWeight: '600',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 2px 8px rgba(251, 191, 36, 0.15)',
-                                    minWidth: '100px'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.target.style.background = `linear-gradient(135deg, ${colors.accent.amber}20 0%, ${colors.accent.amber}30 100%)`;
-                                    e.target.style.borderColor = colors.accent.amber;
-                                    e.target.style.transform = 'translateY(-2px)';
-                                    e.target.style.boxShadow = '0 4px 12px rgba(251, 191, 36, 0.3)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.target.style.background = `linear-gradient(135deg, ${colors.bg.secondary} 0%, ${colors.bg.tertiary} 100%)`;
-                                    e.target.style.borderColor = `${colors.accent.amber}40`;
-                                    e.target.style.transform = 'translateY(0)';
-                                    e.target.style.boxShadow = '0 2px 8px rgba(251, 191, 36, 0.15)';
-                                }}
-                            >
-                                SAR
-                            </button>
-                            <button
-                                onClick={() => setDocumentPopup({ isOpen: true, type: 'case_notes' })}
-                                style={{
-                                    background: `linear-gradient(135deg, ${colors.bg.secondary} 0%, ${colors.bg.tertiary} 100%)`,
-                                    color: colors.text.primary,
-                                    border: `2px solid ${colors.accent.blue}40`,
-                                    padding: '0.75rem 1.5rem',
-                                    borderRadius: '10px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.95rem',
-                                    fontWeight: '600',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.15)',
-                                    minWidth: '120px'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.target.style.background = `linear-gradient(135deg, ${colors.accent.blue}20 0%, ${colors.accent.blue}30 100%)`;
-                                    e.target.style.borderColor = colors.accent.blue;
-                                    e.target.style.transform = 'translateY(-2px)';
-                                    e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.target.style.background = `linear-gradient(135deg, ${colors.bg.secondary} 0%, ${colors.bg.tertiary} 100%)`;
-                                    e.target.style.borderColor = `${colors.accent.blue}40`;
-                                    e.target.style.transform = 'translateY(0)';
-                                    e.target.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.15)';
-                                }}
-                            >
-                                Case Notes
-                            </button>
+                            {[
+                                { type: 'edd', label: 'EDD', minWidth: '100px' },
+                                { type: 'media', label: 'Media Screening', minWidth: '140px' },
+                                { type: 'sar', label: 'SAR', minWidth: '100px' },
+                                { type: 'case_notes', label: 'Case Notes', minWidth: '120px' }
+                            ].map(btn => (
+                                <button
+                                    key={btn.type}
+                                    onClick={() => setDocumentPopup({ isOpen: true, type: btn.type })}
+                                    style={{
+                                        background: colors.bg.primary,
+                                        color: '#003366',
+                                        border: '2px solid #E2E8F0',
+                                        padding: '0.75rem 1.5rem',
+                                        borderRadius: '10px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.95rem',
+                                        fontWeight: '600',
+                                        transition: 'all 0.2s ease',
+                                        boxShadow: '0 2px 8px rgba(29, 78, 216, 0.08)',
+                                        minWidth: btn.minWidth
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.target.style.background = '#1D4ED8';
+                                        e.target.style.color = '#FFFFFF';
+                                        e.target.style.borderColor = '#1D4ED8';
+                                        e.target.style.transform = 'translateY(-2px)';
+                                        e.target.style.boxShadow = '0 4px 12px rgba(29, 78, 216, 0.25)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.target.style.background = colors.bg.primary;
+                                        e.target.style.color = '#003366';
+                                        e.target.style.borderColor = '#E2E8F0';
+                                        e.target.style.transform = 'translateY(0)';
+                                        e.target.style.boxShadow = '0 2px 8px rgba(29, 78, 216, 0.08)';
+                                    }}
+                                >
+                                    {btn.label}
+                                </button>
+                            ))}
                         </div>
 
                         {/* Investigation Progress Tracker */}
@@ -3849,7 +3478,8 @@
                     <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
                         {/* Left Panel - Main Investigation Content */}
                         <div style={{
-                            flex: chatExpanded ? '60%' : '1',
+                            flex: 1,
+                            minWidth: 0,
                             overflow: 'auto',
                             padding: '2rem',
                             transition: 'all 0.3s ease'
@@ -3876,27 +3506,28 @@
                                     transition: 'all 0.3s ease',
                                     position: 'relative',
                                     overflow: 'hidden',
-                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)'
+                                    boxShadow: '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)'
                                 }}
                                 onMouseOver={(e) => {
-                                    e.target.style.background = 'linear-gradient(135deg, ' + metric.color + '15 0%, ' + metric.color + '25 50%, ' + metric.color + '15 100%)';
-                                    e.target.style.borderColor = metric.color;
+                                    const hc = '#1D4ED8';
+                                    e.target.style.background = 'linear-gradient(135deg, ' + hc + '08 0%, ' + hc + '12 50%, ' + hc + '08 100%)';
+                                    e.target.style.borderColor = hc;
                                     e.target.style.transform = 'translateY(-4px) scale(1.02)';
-                                    e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15), 0 4px 10px ' + metric.color + '30, inset 0 1px 0 rgba(255,255,255,0.2)';
+                                    e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.08), 0 4px 10px ' + hc + '18, inset 0 1px 0 rgba(0,0,0,0.03)';
                                 }}
                                 onMouseOut={(e) => {
                                     e.target.style.background = 'linear-gradient(135deg, ' + colors.bg.secondary + ' 0%, ' + colors.bg.tertiary + ' 50%, ' + colors.bg.secondary + ' 100%)';
                                     e.target.style.borderColor = colors.border.subtle;
                                     e.target.style.transform = 'translateY(0px) scale(1)';
-                                    e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)';
+                                    e.target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(0,0,0,0.03)';
                                 }}
                             >
                                 <div style={{ color: colors.text.secondary, fontSize: '0.875rem', marginBottom: '0.5rem', pointerEvents: 'none' }}>
                                     {metric.label}
                                 </div>
-                                <div style={{ color: metric.color, fontSize: '1.75rem', fontWeight: '700', pointerEvents: 'none' }}>
+                                <div style={{ color: metric.color, fontSize: '1.75rem', fontWeight: '700', pointerEvents: 'none', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
                                     {metric.label === 'Total Amount' ?
-                                        `$${parseFloat(metric.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` :
+                                        `$${parseFloat(metric.value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` :
                                         metric.value
                                     }
                                 </div>
@@ -3905,9 +3536,13 @@
                     </div>
 
                     {/* Visualizations Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-                        <TransactionTimeline alert={alert} />
-                        <NetworkGraph alert={alert} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem', minWidth: 0 }}>
+                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                            <TransactionTimeline alert={alert} />
+                        </div>
+                        <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                            <NetworkGraph alert={alert} />
+                        </div>
                     </div>
 
                     {/* Transaction Table */}
@@ -3925,12 +3560,12 @@
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
                                     <tr style={{ background: colors.bg.tertiary }}>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>ID</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Date</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Type</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Amount</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Location</th>
-                                        <th style={{ padding: '1rem', textAlign: 'left', color: colors.text.secondary }}>Flags</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>ID</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Date</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Type</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Amount</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Location</th>
+                                        <th style={{ padding: '0.875rem 1rem', textAlign: 'left', color: colors.text.secondary, fontSize: '0.8125rem', fontWeight: '600', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Flags</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -3943,10 +3578,10 @@
                                                 transition: 'all 0.2s ease'
                                             }}
                                             onMouseOver={(e) => {
-                                                e.target.style.backgroundColor = colors.bg.tertiary;
+                                                e.currentTarget.style.backgroundColor = colors.bg.tertiary;
                                             }}
                                             onMouseOut={(e) => {
-                                                e.target.style.backgroundColor = 'transparent';
+                                                e.currentTarget.style.backgroundColor = 'transparent';
                                             }}
                                         >
                                             <td style={{ padding: '1rem', color: colors.text.primary, fontFamily: 'monospace' }}>
@@ -4077,11 +3712,10 @@
 
                         {/* Right Panel - AI Chat */}
                         <div style={{
-                            width: chatExpanded ? '40%' : '0',
-                            minWidth: chatExpanded ? '400px' : '0',
-                            maxWidth: chatExpanded ? '600px' : '0',
+                            flex: chatExpanded ? '0 0 38%' : '0 0 0px',
+                            maxWidth: chatExpanded ? '550px' : '0',
                             overflow: 'hidden',
-                            transition: 'all 0.3s ease',
+                            transition: 'flex-basis 0.3s ease',
                             borderLeft: chatExpanded ? `1px solid ${colors.border.subtle}` : 'none',
                             background: colors.bg.primary,
                             display: 'flex',
@@ -4100,8 +3734,8 @@
                                             justifyContent: 'space-between',
                                             alignItems: 'center'
                                         }}>
-                                            <h3 style={{ margin: 0, color: colors.text.primary }}>
-                                                🤖 AI Investigation Assistant
+                                            <h3 style={{ margin: 0, color: colors.text.primary, fontSize: '1rem', fontWeight: '600', letterSpacing: '-0.01em' }}>
+                                                AI Investigation Assistant
                                             </h3>
                                             <button
                                                 onClick={() => setChatExpanded(false)}
@@ -4114,7 +3748,7 @@
                                                 }}
                                                 title="Close Chat"
                                             >
-                                                ✕
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{pointerEvents:'none'}}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                                             </button>
                                         </div>
                                     </div>
@@ -4138,7 +3772,7 @@
                                                 textTransform: 'uppercase',
                                                 letterSpacing: '0.05em'
                                             }}>
-                                                🟢 Connected Agents • Multi-Agent Supervisor Active
+                                                <span style={{display:'inline-block',width:'8px',height:'8px',borderRadius:'50%',background:colors.accent.emerald,marginRight:'6px',boxShadow:'0 0 6px '+colors.accent.emerald}}></span> Connected Agents • Multi-Agent Supervisor Active
                                             </div>
                                             <button
                                                 onClick={() => setAgentsPanelMinimized(!agentsPanelMinimized)}
@@ -4162,7 +3796,7 @@
                                                 }}
                                                 title={agentsPanelMinimized ? "Expand agents panel" : "Minimize agents panel"}
                                             >
-                                                {agentsPanelMinimized ? '⬇️' : '⬆️'}
+                                                {agentsPanelMinimized ? '▾' : '▴'}
                                             </button>
                                         </div>
 
@@ -4175,12 +3809,12 @@
                                             gap: '0.5rem'
                                         }}>
                                             {[
-                                                { id: 'FIN-AML-policies', icon: '📚', name: 'Policy Expert', desc: 'FFEIC, FINRA & OFAC policies' },
-                                                { id: 'FIN-AML-case-details', icon: '🔍', name: 'Case Notes Analyst', desc: 'Case findings & history' },
-                                                { id: 'FIN-AML-media-updt', icon: '📰', name: 'Media Monitor', desc: 'Adverse media & crime data' },
-                                                { id: 'agent-aml-alert360', icon: '⚠️', name: 'Alert Specialist', desc: 'Customer alerts & transactions' },
-                                                { id: 'agent-aml-case360', icon: '📋', name: 'Case Metrics Analyst', desc: 'Case notes & documentation' },
-                                                { id: 'mcp-fin-aml-websearch', icon: '🌐', name: 'Web Search', desc: 'Recent news & reports' }
+                                                { id: 'FIN-AML-policies', icon: 'POL', color: colors.accent.blue, name: 'Policy Expert', desc: 'FFEIC, FINRA & OFAC policies' },
+                                                { id: 'FIN-AML-case-details', icon: 'CSE', color: colors.accent.cyan, name: 'Case Notes Analyst', desc: 'Case findings & history' },
+                                                { id: 'FIN-AML-media-updt', icon: 'MED', color: colors.accent.amber, name: 'Media Monitor', desc: 'Adverse media & crime data' },
+                                                { id: 'agent-aml-alert360', icon: 'ALT', color: colors.accent.rose, name: 'Alert Specialist', desc: 'Customer alerts & transactions' },
+                                                { id: 'agent-aml-case360', icon: 'MTR', color: colors.accent.violet, name: 'Case Metrics Analyst', desc: 'Case notes & documentation' },
+                                                { id: 'mcp-fin-aml-websearch', icon: 'WEB', color: colors.accent.emerald, name: 'Web Search', desc: 'Recent news & reports' }
                                             ].map((agent, index) => (
                                                 <div key={agent.id} style={{
                                                     background: colors.bg.primary,
@@ -4224,8 +3858,19 @@
 
                                                     {/* Agent Icon */}
                                                     <div style={{
-                                                        fontSize: '1.25rem',
-                                                        filter: 'brightness(1.1)'
+                                                        width: '28px',
+                                                        height: '28px',
+                                                        borderRadius: '6px',
+                                                        background: (agent.color || colors.accent.blue) + '25',
+                                                        border: `1px solid ${(agent.color || colors.accent.blue)}40`,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '0.55rem',
+                                                        fontWeight: '700',
+                                                        color: agent.color || colors.accent.blue,
+                                                        letterSpacing: '0.02em',
+                                                        flexShrink: 0
                                                     }}>
                                                         {agent.icon}
                                                     </div>
@@ -4287,7 +3932,7 @@
                                                 color: colors.text.secondary,
                                                 marginTop: '2rem'
                                             }}>
-                                                <p>💬 Ask the AI assistant anything about this investigation</p>
+                                                <p style={{fontSize: '0.95rem', color: colors.text.primary}}>Ask the AI assistant anything about this investigation</p>
                                                 <p style={{ fontSize: '0.875rem' }}>Try: "What patterns do you see in these transactions?"</p>
                                             </div>
                                         ) : (
@@ -4312,7 +3957,7 @@
                                                                 marginBottom: '0.25rem'
                                                             }}>
                                                                 {message.role === 'user' ? 'You' : 'AI Assistant'}
-                                                                {message.isStreaming && <span style={{ marginLeft: '0.5rem' }}>🔄</span>}
+                                                                {message.isStreaming && <span style={{ marginLeft: '0.5rem', display: 'inline-block', width: '12px', height: '12px', border: '2px solid ' + colors.accent.blue + '40', borderTop: '2px solid ' + colors.accent.blue, borderRadius: '50%', animation: 'spin 1s linear infinite', verticalAlign: 'middle' }}></span>}
                                                                 {message.hasError && <span style={{ marginLeft: '0.5rem', color: colors.accent.rose }}>⚠️</span>}
                                                             </div>
 
@@ -4327,7 +3972,7 @@
                                                                     fontSize: '0.75rem',
                                                                     color: colors.text.secondary
                                                                 }}>
-                                                                    <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>🔄 Agent Activity:</div>
+                                                                    <div style={{ fontWeight: '600', marginBottom: '0.25rem', color: colors.accent.blue }}>Agent Activity</div>
                                                                     {message.metadata.activities.map((activity, i) => (
                                                                         <div key={i} style={{ marginBottom: '0.25rem' }}>
                                                                             • {activity.agent || 'Agent'}: {activity.action || activity.tool || activity.message || 'Processing...'}
@@ -4347,6 +3992,8 @@
                                                                 dangerouslySetInnerHTML={{
                                                                     __html: message.content
                                                                         ? marked.parse(message.content, { breaks: true, gfm: true })
+                                                                            .replace(/<table>/g, '<div class="table-wrapper"><table>')
+                                                                            .replace(/<\/table>/g, '</table></div>')
                                                                         : message.isStreaming ? '<em>Generating response...</em>' : ''
                                                                 }}
                                                             />
@@ -4372,24 +4019,7 @@
                                                                 </div>
                                                             )}
 
-                                                            {/* Show confidence and recommendation for completed messages */}
-                                                            {!message.isStreaming && message.confidence_score && (
-                                                                <div style={{
-                                                                    marginTop: '0.5rem',
-                                                                    padding: '0.5rem',
-                                                                    background: colors.bg.primary,
-                                                                    borderRadius: '4px',
-                                                                    fontSize: '0.75rem',
-                                                                    color: colors.text.secondary
-                                                                }}>
-                                                                    <div>Confidence: {Math.round(message.confidence_score * 100)}%</div>
-                                                                    {message.recommendation && (
-                                                                        <div style={{ marginTop: '0.25rem' }}>
-                                                                            Recommendation: <strong>{message.recommendation.replace(/_/g, ' ')}</strong>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
+                                                            {/* Confidence score removed for cleaner UI */}
                                                         </div>
                                                         {index === chatMessages.length - 1 && <div ref={messagesEndRef} />}
                                                     </div>
@@ -4492,7 +4122,7 @@
                             }}
                             title="Open AI Chat"
                         >
-                            💬
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{pointerEvents:'none'}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         </button>
                     )}
 
@@ -5334,10 +4964,12 @@
                 }
             };
 
-            // Parse total amount for display
-            const totalAmountDisplay = typeof alert.total_amount === 'string' 
-                ? alert.total_amount 
-                : `$${(alert.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            // Parse total amount for display — always format as clean dollar amount
+            const totalAmountDisplay = (() => {
+                const raw = alert.total_amount;
+                const num = typeof raw === 'string' ? parseFloat(raw.replace(/[$,]/g, '')) : (raw || 0);
+                return `$${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+            })();
 
             return (
                 <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
@@ -5911,7 +5543,7 @@
             return (
                 <div style={{
                     minHeight: '100vh',
-                    background: `linear-gradient(135deg, ${colors.bg.primary} 0%, #0a0f1b 100%)`,
+                    background: `linear-gradient(135deg, ${colors.bg.primary} 0%, #DBEAFE 100%)`,
                     position: 'relative',
                     overflow: 'hidden',
                     display: 'flex',
@@ -6022,16 +5654,19 @@
                                     WebkitBackgroundClip: 'text',
                                     WebkitTextFillColor: 'transparent',
                                     margin: 0,
-                                    letterSpacing: '-0.02em'
+                                    letterSpacing: '-0.03em',
+                                    lineHeight: 1.1
                                 }}>
                                     Sherlock AML
                                 </h1>
                             </div>
                             <p style={{
                                 color: colors.text.secondary,
-                                fontSize: '1.2rem',
-                                margin: '0.5rem 0 0 0',
-                                fontWeight: '300'
+                                fontSize: '1.125rem',
+                                margin: '0.75rem 0 0 0',
+                                fontWeight: '400',
+                                letterSpacing: '0.02em',
+                                opacity: 0.85
                             }}>
                                 Next-Generation Financial Crime Intelligence Platform
                             </p>
@@ -6064,7 +5699,7 @@
                                     <div style={{
                                         fontSize: '2rem',
                                         fontWeight: 'bold',
-                                        color: colors.accent.purple,
+                                        color: colors.accent.cyan,
                                         animation: 'countUp 2s ease-out 0.4s'
                                     }}>$10M+</div>
                                     <div style={{ color: colors.text.secondary, fontSize: '0.875rem' }}>Annual Savings</div>
@@ -6086,14 +5721,15 @@
                                         ? `linear-gradient(135deg, ${colors.bg.secondary}, ${colors.bg.tertiary})`
                                         : colors.bg.secondary,
                                     border: `1px solid ${hoveredCard === 'executive' ? colors.accent.blue : colors.border.subtle}`,
-                                    borderRadius: '16px',
+                                    borderTop: `2px solid ${hoveredCard === 'executive' ? colors.accent.blue : colors.border.subtle}`,
+                                    borderRadius: '12px',
                                     padding: '2rem',
                                     cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                    transform: hoveredCard === 'executive' ? 'scale(1.02)' : 'scale(1)',
+                                    transition: 'all 0.25s ease',
+                                    transform: hoveredCard === 'executive' ? 'translateY(-4px)' : 'translateY(0)',
                                     boxShadow: hoveredCard === 'executive'
-                                        ? '0 20px 40px rgba(79, 172, 254, 0.2)'  // Blue shadow
-                                        : 'none',
+                                        ? '0 12px 32px rgba(29, 78, 216, 0.12), 0 4px 12px rgba(0,0,0,0.2)'
+                                        : '0 2px 8px rgba(0,0,0,0.1)',
                                     opacity: isLoaded ? 1 : 0,
                                     animation: 'slideInLeft 0.8s ease-out'
                                 }}
@@ -6111,19 +5747,22 @@
                                         width: '50px',
                                         height: '50px',
                                         borderRadius: '12px',
-                                        background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.purple})`,
+                                        background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         fontSize: '24px'
                                     }}>
-                                        📊
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+                                        </svg>
                                     </div>
                                     <div>
                                         <h2 style={{
                                             margin: 0,
                                             color: colors.text.primary,
-                                            fontSize: '1.5rem'
+                                            fontSize: '1.5rem',
+                                            letterSpacing: '-0.02em'
                                         }}>Executive Dashboard</h2>
                                         <p style={{
                                             margin: '0.25rem 0 0 0',
@@ -6153,7 +5792,7 @@
                                             gap: '0.5rem',
                                             marginBottom: '0.5rem'
                                         }}>
-                                            <span style={{ color: colors.accent.green }}>✓</span>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.accent.emerald} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><polyline points="20 6 9 17 4 12"/></svg>
                                             <span style={{ color: colors.text.secondary }}>{item}</span>
                                         </li>
                                     ))}
@@ -6161,10 +5800,10 @@
                                 <button style={{
                                     width: '100%',
                                     padding: '0.75rem',
-                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.purple})`,
+                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
                                     border: 'none',
                                     borderRadius: '8px',
-                                    color: colors.bg.primary,  // Changed to dark color for better contrast
+                                    color: colors.bg.primary,
                                     fontWeight: '600',
                                     fontSize: '1rem',
                                     cursor: 'pointer',
@@ -6182,14 +5821,15 @@
                                         ? `linear-gradient(135deg, ${colors.bg.secondary}, ${colors.bg.tertiary})`
                                         : colors.bg.secondary,
                                     border: `1px solid ${hoveredCard === 'analyst' ? colors.accent.blue : colors.border.subtle}`,
-                                    borderRadius: '16px',
+                                    borderTop: `2px solid ${hoveredCard === 'analyst' ? colors.accent.blue : colors.border.subtle}`,
+                                    borderRadius: '12px',
                                     padding: '2rem',
                                     cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                    transform: hoveredCard === 'analyst' ? 'scale(1.02)' : 'scale(1)',
+                                    transition: 'all 0.25s ease',
+                                    transform: hoveredCard === 'analyst' ? 'translateY(-4px)' : 'translateY(0)',
                                     boxShadow: hoveredCard === 'analyst'
-                                        ? '0 20px 40px rgba(79, 172, 254, 0.2)'  // Blue shadow (same as Executive)
-                                        : 'none',
+                                        ? '0 12px 32px rgba(29, 78, 216, 0.12), 0 4px 12px rgba(0,0,0,0.2)'
+                                        : '0 2px 8px rgba(0,0,0,0.1)',
                                     opacity: isLoaded ? 1 : 0,
                                     animation: 'slideInRight 0.8s ease-out'
                                 }}
@@ -6207,19 +5847,22 @@
                                         width: '50px',
                                         height: '50px',
                                         borderRadius: '12px',
-                                        background: `linear-gradient(135deg, ${colors.accent.green}, ${colors.accent.cyan})`,
+                                        background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         fontSize: '24px'
                                     }}>
-                                        🔍
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                                        </svg>
                                     </div>
                                     <div>
                                         <h2 style={{
                                             margin: 0,
                                             color: colors.text.primary,
-                                            fontSize: '1.5rem'
+                                            fontSize: '1.5rem',
+                                            letterSpacing: '-0.02em'
                                         }}>Alert Investigation</h2>
                                         <p style={{
                                             margin: '0.25rem 0 0 0',
@@ -6249,7 +5892,7 @@
                                             gap: '0.5rem',
                                             marginBottom: '0.5rem'
                                         }}>
-                                            <span style={{ color: colors.accent.green }}>✓</span>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={colors.accent.emerald} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><polyline points="20 6 9 17 4 12"/></svg>
                                             <span style={{ color: colors.text.secondary }}>{item}</span>
                                         </li>
                                     ))}
@@ -6257,10 +5900,10 @@
                                 <button style={{
                                     width: '100%',
                                     padding: '0.75rem',
-                                    background: `linear-gradient(135deg, ${colors.accent.green}, ${colors.accent.cyan})`,
+                                    background: `linear-gradient(135deg, ${colors.accent.blue}, ${colors.accent.cyan})`,
                                     border: 'none',
                                     borderRadius: '8px',
-                                    color: colors.bg.primary,  // Changed to dark color for better contrast
+                                    color: colors.bg.primary,
                                     fontWeight: '600',
                                     fontSize: '1rem',
                                     cursor: 'pointer',
@@ -6280,7 +5923,9 @@
                             borderRadius: '12px',
                             border: `1px solid ${colors.border.subtle}`,
                             opacity: isLoaded ? 1 : 0,
-                            animation: 'fadeIn 1s ease-out 0.5s both'
+                            animation: 'fadeIn 1s ease-out 0.5s both',
+                            backdropFilter: 'blur(8px)',
+                            background: 'rgba(255, 255, 255, 0.7)'
                         }}>
                             <div style={{
                                 display: 'grid',

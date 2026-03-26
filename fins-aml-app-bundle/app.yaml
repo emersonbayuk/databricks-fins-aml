@@ -18,10 +18,10 @@ resources:
 
 env:
   # Resource-bound values (resolved by Databricks Apps runtime)
+  # Note: DATABRICKS_HOST, DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET
+  # are auto-injected by the Databricks Apps runtime for the app's service principal.
   - name: 'DATABRICKS_WAREHOUSE_ID'
     valueFrom: sql_warehouse
-  - name: 'DATABRICKS_TOKEN'
-    valueFrom: secret
   - name: 'NEO4J_PASSWORD'
     valueFrom: secret-2
 

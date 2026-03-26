@@ -22,15 +22,36 @@ _cache_timestamps = {}
 class DatabaseService:
     """Service for handling Databricks SQL connections and queries"""
 
-    def __init__(self, warehouse_id: str, token: str = None, hostname: str = None):
+    def __init__(self, warehouse_id: str, hostname: str = None):
         from backend import config
         self.warehouse_id = warehouse_id
-        self.token = token or config.DATABRICKS_TOKEN or "dummy_token"
         self.hostname = hostname or config.DATABRICKS_HOSTNAME
+        self._credentials_provider = config.get_sql_credentials_provider()
+        # PAT fallback for local dev when no SP credentials
+        self._access_token = config.DATABRICKS_TOKEN if self._credentials_provider is None else None
         self._connection = None
         self._last_connection_time = None
         self._connection_timeout = 300  # 5 minutes
         self._max_retries = 3
+
+        if self._credentials_provider:
+            logger.info("DatabaseService: using OAuth M2M (service principal)")
+        elif self._access_token:
+            logger.info("DatabaseService: using PAT token fallback")
+        else:
+            logger.warning("DatabaseService: no credentials available")
+
+    def _create_connection(self):
+        """Create a new SQL connection (sync, run in executor)."""
+        connect_kwargs = dict(
+            server_hostname=self.hostname,
+            http_path=f"/sql/1.0/warehouses/{self.warehouse_id}",
+        )
+        if self._credentials_provider:
+            connect_kwargs["credentials_provider"] = self._credentials_provider
+        else:
+            connect_kwargs["access_token"] = self._access_token or "dummy_token"
+        return sql.connect(**connect_kwargs)
 
     async def get_connection(self, force_refresh=False):
         """Get or create a database connection with automatic refresh"""
@@ -48,12 +69,7 @@ class DatabaseService:
                 # Run connection creation in thread pool since databricks.sql is sync
                 loop = asyncio.get_event_loop()
                 self._connection = await loop.run_in_executor(
-                    None,
-                    lambda: sql.connect(
-                        server_hostname=self.hostname,
-                        http_path=f"/sql/1.0/warehouses/{self.warehouse_id}",
-                        access_token=self.token
-                    )
+                    None, self._create_connection
                 )
                 self._last_connection_time = time.time()
                 logger.info("Database connection established/refreshed")
