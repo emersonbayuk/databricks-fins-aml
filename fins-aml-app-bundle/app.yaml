@@ -18,30 +18,29 @@ resources:
 
 env:
   # Resource-bound values (resolved by Databricks Apps runtime)
+  # Note: DATABRICKS_HOST, DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET
+  # are auto-injected by the Databricks Apps runtime for the app's service principal.
   - name: 'DATABRICKS_WAREHOUSE_ID'
     valueFrom: sql_warehouse
-  - name: 'DATABRICKS_TOKEN'
-    valueFrom: secret
   - name: 'NEO4J_PASSWORD'
     valueFrom: secret-2
 
-  # Per-target values — update these when switching targets
-  # (must match the active target in databricks.yml)
+  # Per-target values — resolved automatically from databricks.yml variables
   - name: 'DATABRICKS_HOSTNAME'
-    value: 'e2-demo-west.cloud.databricks.com'
+    value: '${var.databricks_hostname}'
   - name: 'DATABRICKS_WORKSPACE_ID'
-    value: '2556758628403379'
+    value: '${var.workspace_id}'
   - name: 'DATABRICKS_DASHBOARD_ID'
-    value: '01f1175919d61bb89245b4ff377e7e1e'
+    value: '${var.dashboard_id}'
   - name: 'DATABRICKS_CATALOG'
-    value: 'financial_services'
+    value: '${var.catalog}'
   - name: 'DATABRICKS_SCHEMA'
-    value: 'fincrime'
+    value: '${var.schema}'
   - name: 'MAS_ENDPOINT_URL'
-    value: 'https://e2-demo-west.cloud.databricks.com/serving-endpoints/mas-be073cf6-endpoint/invocations'
+    value: '${var.mas_endpoint_url}'
   - name: 'NEO4J_URI'
-    value: 'neo4j+s://398dd975.databases.neo4j.io'
+    value: '${var.neo4j_uri}'
   - name: 'NEO4J_USER'
-    value: 'neo4j'
+    value: '${var.neo4j_user}'
   - name: 'NEO4J_DATABASE'
-    value: 'neo4j'
+    value: '${var.neo4j_database}'

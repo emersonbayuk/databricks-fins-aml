@@ -10,8 +10,10 @@ variables:
     description: "SQL warehouse ID"
   mas_endpoint_url:
     description: "MAS agent serving endpoint URL"
+    default: ""
   neo4j_uri:
     description: "Neo4j Aura connection URI"
+    default: ""
   neo4j_user:
     description: "Neo4j username"
     default: "neo4j"
@@ -20,6 +22,7 @@ variables:
     default: "neo4j"
   dashboard_id:
     description: "Lakeview dashboard ID"
+    default: ""
   catalog:
     description: "Unity Catalog name"
     default: "fins_aml"
