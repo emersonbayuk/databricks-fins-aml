@@ -1,0 +1,39 @@
+bundle:
+  name: test-graph-fins-aml
+
+include:
+  - ./resources/*.yml
+
+targets:
+  development:
+    mode: development
+    workspace:
+      host: https://fevm-fins-demo.cloud.databricks.com
+    resources:
+      apps:
+        test-graph-fins-aml:
+          name: test-graph-fins-aml-dev
+          description: Test Graph FINS AML Investigation Platform (Development)
+    variables:
+      catalog:
+        default: fins_aml
+      schema:
+        default: data_generation
+
+  production:
+    mode: production
+    workspace:
+      host: https://fevm-fins-demo.cloud.databricks.com
+    resources:
+      apps:
+        test-graph-fins-aml:
+          name: test-graph-fins-aml
+          description: Test Graph FINS AML Investigation Platform
+          permissions:
+            - level: CAN_USE
+              group_name: account users
+    variables:
+      catalog:
+        default: fins_aml
+      schema:
+        default: data_generation
