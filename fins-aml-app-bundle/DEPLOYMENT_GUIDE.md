@@ -4,6 +4,23 @@ This document describes how to deploy the SherlockAML app to any Databricks work
 
 ---
 
+## Data Bundle + App Bundle: What Must Be Synced
+
+This repo contains two independent Databricks Asset Bundles. The **data bundle** (`fins-aml-data-bundle`) generates the AML tables and dashboard. The **app bundle** (`fins-aml-app-bundle`) deploys the SherlockAML application that reads from those tables. They are deployed separately, but **four variables must match** between them:
+
+| Variable | Data Bundle (`fins-aml-data-pipeline`) | App Bundle (`fins-aml-platform`) | Why |
+|---|---|---|---|
+| **`catalog`** | Creates tables in this catalog | Reads tables from this catalog | App queries the tables the pipeline generates |
+| **`schema`** | Creates tables in this schema | Reads tables from this schema | Same |
+| **`warehouse_id`** | Runs pipeline SQL on this warehouse | Connects to this warehouse for live queries | Both must use the same warehouse for consistent access |
+| **`dashboard_id`** | Creates/updates this dashboard | Embeds this dashboard in the Executive Overview | App embeds the dashboard the pipeline creates |
+
+**Deploy order**: Data bundle first (creates tables + dashboard), then app bundle (needs the tables to exist and the dashboard ID to reference).
+
+**Everything else is independent**: the app bundle has additional variables (`mas_endpoint_url`, `neo4j_uri`, `databricks_hostname`, `workspace_id`, etc.) that have no counterpart in the data bundle.
+
+---
+
 ## Prerequisites
 
 Before deploying, gather these values from your target workspace:
