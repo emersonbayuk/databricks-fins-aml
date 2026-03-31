@@ -51,9 +51,11 @@ The Databricks Apps runtime automatically injects `DATABRICKS_CLIENT_ID` and `DA
 
 A PAT (`DATABRICKS_TOKEN`) is supported as an optional fallback for local development only.
 
-### Parameterization
+### How app.yaml Parameterization Works
 
-All workspace-specific values in `app.yaml` use `${var.xxx}` bundle variable references. These are resolved from `databricks.yml` at deploy time. **You never need to edit `app.yaml` or `config.py` when deploying to a new workspace** -- just add a target block to `databricks.yml`.
+The `app.yaml` file contains `${var.xxx}` bundle variable references for all workspace-specific values. **However, `databricks bundle deploy` does not resolve these variables in app.yaml** -- it only resolves them in resource definitions (jobs, pipelines) inside `databricks.yml`. The `app.yaml` is uploaded as a raw file.
+
+This means deploying to a new workspace requires a **post-deploy step** to resolve the variables before starting the app. The `deploy.sh` script (included in this bundle) handles this automatically.
 
 ### DATABRICKS_HOST vs DATABRICKS_HOSTNAME
 
@@ -89,26 +91,36 @@ targets:
 
 Variables with defaults (`catalog`, `schema`, `mas_endpoint_url`, `dashboard_id`) can be omitted if the defaults are acceptable.
 
-### Step 2: Deploy the bundle
-
-Deploying is a two-step process. First, `databricks bundle deploy` uploads the code to the workspace. Then, `databricks apps deploy` tells the Databricks Apps runtime to build and start the application from that code.
+### Step 2: Deploy using the deploy script
 
 ```bash
-# Validate the bundle configuration
-databricks bundle validate -t my-new-workspace --profile YOUR_PROFILE
+./deploy.sh my-new-workspace YOUR_PROFILE
+```
 
-# Deploy — uploads code to the workspace file system
+This script does three things in order:
+1. Validates and runs `databricks bundle deploy` (uploads code to workspace)
+2. Resolves `${var.xxx}` references in `app.yaml` using the target's variable values from `databricks.yml`, then uploads the resolved file
+3. Runs `databricks apps deploy` to start the application
+
+**Manual alternative** (if you prefer not to use the script):
+
+```bash
+# 1. Deploy the bundle
+databricks bundle validate -t my-new-workspace --profile YOUR_PROFILE
 databricks bundle deploy -t my-new-workspace --profile YOUR_PROFILE
 
-# Start the app — this is a separate step that triggers the Apps runtime
-# to build the container and launch the application
+# 2. Manually resolve app.yaml: copy app.yaml, replace each ${var.xxx}
+#    with the actual value from your target block, then upload:
+databricks workspace import --profile YOUR_PROFILE --overwrite \
+  /Workspace/Users/YOUR_EMAIL/.bundle/fins-aml-platform/my-new-workspace/files/app.yaml \
+  --file ./app.yaml.resolved --format AUTO
+
+# 3. Deploy the app
 databricks apps deploy fins-aml-platform --profile YOUR_PROFILE \
   --source-code-path /Workspace/Users/YOUR_EMAIL/.bundle/fins-aml-platform/my-new-workspace/files
 ```
 
-After the first deploy, subsequent code updates follow the same two commands (`bundle deploy` then `apps deploy`).
-
-### Step 3: Configure app resources and secrets
+### Step 3: Configure app resources
 
 After the first deploy, open the app in the Databricks UI (**Apps -> fins-aml-platform -> Resources**) and configure:
 
@@ -147,8 +159,10 @@ If you omit optional variables (those with `default: ""`), the corresponding fea
 | File | Purpose | Edit needed for new workspace? |
 |---|---|---|
 | `databricks.yml` | Bundle config with targets and variables | **Yes** -- add a target block |
-| `app.yaml` | App runtime config with `${var.xxx}` references | No |
+| `deploy.sh` | Automated deploy script (resolve + deploy) | No |
+| `app.yaml` | App runtime config with `${var.xxx}` references | No (resolved by deploy.sh) |
 | `backend/config.py` | Python config with OAuth M2M token management | No |
+| `backend/api/databricks_graph.py` | Native Databricks graph visualization | No |
 | `backend/api/agent.py` | MAS agent chat (OAuth auth) | No |
 | `backend/api/sar.py` | SAR narrative generation (OAuth auth) | No |
 | `backend/api/auth.py` | Dashboard embedding auth flow | No |
@@ -157,6 +171,7 @@ If you omit optional variables (those with `default: ""`), the corresponding fea
 | `requirements.txt` | Python dependencies (includes `databricks-sdk`) | No |
 | `frontend/build/index.html` | React frontend (fetches config from API at runtime) | No |
 | `.env.example` | Example env vars for local development | No |
+| `_stashed_neo4j/` | Archived Neo4j integration (see README inside) | No |
 
 ---
 
