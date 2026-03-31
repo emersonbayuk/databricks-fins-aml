@@ -13,13 +13,44 @@
 
 # COMMAND ----------
 
-CATALOG = "fins_aml"
-SCHEMA = "data_generation"
+# Create widgets for parameters
+dbutils.widgets.text("catalog", "fins_aml", "Catalog Name")
+dbutils.widgets.text("schema", "data_generation", "Schema Name")
+
+# Get parameters from widgets
+CATALOG = dbutils.widgets.get("catalog")
+SCHEMA = dbutils.widgets.get("schema")
 VOLUME_PATH = f"/Volumes/{CATALOG}/{SCHEMA}/knowledge_base"
 MODEL_ENDPOINT = "databricks-meta-llama-3-3-70b-instruct"
 
-spark.sql(f"CREATE VOLUME IF NOT EXISTS {CATALOG}.{SCHEMA}.knowledge_base")
-print(f"Volume: {VOLUME_PATH}\nModel: {MODEL_ENDPOINT}")
+# Set up catalog and schema
+spark.sql(f"USE CATALOG {CATALOG}")
+spark.sql(f"USE SCHEMA {SCHEMA}")
+print(f"✅ Using catalog: {CATALOG}, schema: {SCHEMA}")
+
+# Create volume if it doesn't exist - robust approach with error handling
+try:
+    # First check if volume exists
+    volumes = spark.sql(f"SHOW VOLUMES IN {CATALOG}.{SCHEMA}").collect()
+    volume_names = [v['volume_name'] for v in volumes]
+
+    if 'knowledge_base' not in volume_names:
+        print(f"Creating volume {CATALOG}.{SCHEMA}.knowledge_base...")
+        spark.sql(f"CREATE VOLUME {CATALOG}.{SCHEMA}.knowledge_base")
+        print(f"✅ Created volume: {CATALOG}.{SCHEMA}.knowledge_base")
+    else:
+        print(f"✅ Volume already exists: {CATALOG}.{SCHEMA}.knowledge_base")
+except Exception as e:
+    print(f"⚠️ Error with volume: {str(e)}")
+    # Try alternative approach
+    try:
+        spark.sql(f"CREATE VOLUME IF NOT EXISTS {CATALOG}.{SCHEMA}.knowledge_base")
+        print(f"✅ Created/verified volume: {CATALOG}.{SCHEMA}.knowledge_base")
+    except Exception as e2:
+        print(f"❌ Could not create volume: {str(e2)}")
+        raise ValueError(f"Unable to create or access volume {CATALOG}.{SCHEMA}.knowledge_base. Please ensure you have the necessary permissions.")
+
+print(f"Volume path: {VOLUME_PATH}\nModel: {MODEL_ENDPOINT}")
 
 # COMMAND ----------
 
@@ -213,28 +244,41 @@ sar_dir = f"{VOLUME_PATH}/sar_narratives"
 os.makedirs(sar_dir, exist_ok=True)
 print("="*70 + "\nGENERATING SAR NARRATIVES\n" + "="*70)
 
-sar_count, sar_failed = 0, 0
-for idx, sar in sars_df.iterrows():
-    cust_row = customers_df[customers_df["customer_id"] == sar["customer_id"]]
-    if cust_row.empty: continue
-    customer = cust_row.iloc[0].to_dict()
-    cust_txns = transactions_df[transactions_df["customer_id"] == sar["customer_id"]]
-    
-    # Get linked case for analyst info
-    case_row = cases_df[cases_df["case_id"] == sar["case_id"]]
-    case = case_row.iloc[0].to_dict() if not case_row.empty else None
-    
-    analyst = case.get('assigned_analyst', 'Unknown') if case else 'Unknown'
-    print(f"\n[{idx+1}/{len(sars_df)}] SAR for {get_customer_name(customer)} - {sar['activity_type']} (Analyst: {analyst})")
-    
-    narrative = generate_with_llm(build_sar_prompt(customer, sar.to_dict(), case, cust_txns))
-    
-    if narrative:
-        with open(f"{sar_dir}/SAR_{sar['fincen_dcn']}_customer_{sar['customer_id']:04d}.txt", 'w') as f: f.write(narrative)
-        sar_count += 1
-    else: sar_failed += 1
+# Check if SAR narratives already exist
+existing_sars = [f for f in os.listdir(sar_dir) if f.startswith("SAR_") and f.endswith(".txt")] if os.path.exists(sar_dir) else []
+expected_sar_count = len(sars_df)
 
-print(f"\nSAR Narratives: {sar_count} generated, {sar_failed} failed")
+if len(existing_sars) >= expected_sar_count:
+    print(f"✅ SAR narratives already exist: {len(existing_sars)} files found (expected {expected_sar_count})")
+    print("   Skipping SAR generation to save time.")
+    sar_count = len(existing_sars)
+    sar_failed = 0
+else:
+    if existing_sars:
+        print(f"⚠️  Found {len(existing_sars)} existing SARs, need {expected_sar_count}. Regenerating all...")
+
+    sar_count, sar_failed = 0, 0
+    for idx, sar in sars_df.iterrows():
+        cust_row = customers_df[customers_df["customer_id"] == sar["customer_id"]]
+        if cust_row.empty: continue
+        customer = cust_row.iloc[0].to_dict()
+        cust_txns = transactions_df[transactions_df["customer_id"] == sar["customer_id"]]
+
+        # Get linked case for analyst info
+        case_row = cases_df[cases_df["case_id"] == sar["case_id"]]
+        case = case_row.iloc[0].to_dict() if not case_row.empty else None
+
+        analyst = case.get('assigned_analyst', 'Unknown') if case else 'Unknown'
+        print(f"\n[{idx+1}/{len(sars_df)}] SAR for {get_customer_name(customer)} - {sar['activity_type']} (Analyst: {analyst})")
+
+        narrative = generate_with_llm(build_sar_prompt(customer, sar.to_dict(), case, cust_txns))
+
+        if narrative:
+            with open(f"{sar_dir}/SAR_{sar['fincen_dcn']}_customer_{sar['customer_id']:04d}.txt", 'w') as f: f.write(narrative)
+            sar_count += 1
+        else: sar_failed += 1
+
+    print(f"\nSAR Narratives: {sar_count} generated, {sar_failed} failed")
 
 # COMMAND ----------
 
@@ -295,29 +339,43 @@ case_dir = f"{VOLUME_PATH}/case_notes"
 os.makedirs(case_dir, exist_ok=True)
 print("="*70 + "\nGENERATING CASE NOTES\n" + "="*70)
 
-case_dist = {"sar_filed": 0, "closed_no_action": 0, "escalated": 0, "pending_info": 0}
-case_count, case_failed = 0, 0
+# Check if case notes already exist
+existing_case_notes = [f for f in os.listdir(case_dir) if f.startswith("case_") and f.endswith(".txt")] if os.path.exists(case_dir) else []
+expected_case_count = len(cases_df)
 
-for idx, case in cases_df.iterrows():
-    cust_row = customers_df[customers_df["customer_id"] == case["customer_id"]]
-    if cust_row.empty: continue
-    customer = cust_row.iloc[0].to_dict()
-    alert_row = alerts_df[alerts_df["alert_id"] == case["alert_id"]]
-    alert = alert_row.iloc[0].to_dict() if not alert_row.empty else None
-    cust_txns = transactions_df[transactions_df["customer_id"] == case["customer_id"]]
-    
-    outcome = random.choices(["sar_filed", "closed_no_action", "escalated", "pending_info"], weights=[30, 40, 15, 15])[0]
-    analyst = case.get('assigned_analyst', 'Unknown') if isinstance(case, dict) else case['assigned_analyst']
-    print(f"\n[{idx+1}/{len(cases_df)}] Case {case['case_id']} - {outcome.upper()} (Analyst: {analyst})")
-    
-    notes = generate_with_llm(build_case_notes_prompt(case.to_dict() if hasattr(case, 'to_dict') else dict(case), customer, alert, cust_txns, outcome))
-    if notes:
-        with open(f"{case_dir}/case_{case['case_id']:04d}_customer_{case['customer_id']:04d}.txt", 'w') as f: f.write(notes)
-        case_count += 1
-        case_dist[outcome] += 1
-    else: case_failed += 1
+if len(existing_case_notes) >= expected_case_count:
+    print(f"✅ Case notes already exist: {len(existing_case_notes)} files found (expected {expected_case_count})")
+    print("   Skipping case notes generation to save time.")
+    case_count = len(existing_case_notes)
+    case_failed = 0
+    case_dist = {"sar_filed": 0, "closed_no_action": 0, "escalated": 0, "pending_info": 0}
+else:
+    if existing_case_notes:
+        print(f"⚠️  Found {len(existing_case_notes)} existing case notes, need {expected_case_count}. Regenerating all...")
 
-print(f"\nCase Notes: {case_count} generated, {case_failed} failed | Distribution: {case_dist}")
+    case_dist = {"sar_filed": 0, "closed_no_action": 0, "escalated": 0, "pending_info": 0}
+    case_count, case_failed = 0, 0
+
+    for idx, case in cases_df.iterrows():
+        cust_row = customers_df[customers_df["customer_id"] == case["customer_id"]]
+        if cust_row.empty: continue
+        customer = cust_row.iloc[0].to_dict()
+        alert_row = alerts_df[alerts_df["alert_id"] == case["alert_id"]]
+        alert = alert_row.iloc[0].to_dict() if not alert_row.empty else None
+        cust_txns = transactions_df[transactions_df["customer_id"] == case["customer_id"]]
+
+        outcome = random.choices(["sar_filed", "closed_no_action", "escalated", "pending_info"], weights=[30, 40, 15, 15])[0]
+        analyst = case.get('assigned_analyst', 'Unknown') if isinstance(case, dict) else case['assigned_analyst']
+        print(f"\n[{idx+1}/{len(cases_df)}] Case {case['case_id']} - {outcome.upper()} (Analyst: {analyst})")
+
+        notes = generate_with_llm(build_case_notes_prompt(case.to_dict() if hasattr(case, 'to_dict') else dict(case), customer, alert, cust_txns, outcome))
+        if notes:
+            with open(f"{case_dir}/case_{case['case_id']:04d}_customer_{case['customer_id']:04d}.txt", 'w') as f: f.write(notes)
+            case_count += 1
+            case_dist[outcome] += 1
+        else: case_failed += 1
+
+    print(f"\nCase Notes: {case_count} generated, {case_failed} failed | Distribution: {case_dist}")
 
 # COMMAND ----------
 
@@ -382,29 +440,44 @@ edd_dir = f"{VOLUME_PATH}/edd_memos"
 os.makedirs(edd_dir, exist_ok=True)
 print("="*70 + "\nGENERATING EDD MEMORANDA\n" + "="*70)
 
-# Get EDD team analysts and supervisor
-edd_analysts = INVESTIGATION_TEAMS["Enhanced Due Diligence (EDD)"]["analysts"]
-edd_supervisor = INVESTIGATION_TEAMS["Enhanced Due Diligence (EDD)"]["supervisors"][0]
+# Check if EDD memos already exist
+existing_edds = [f for f in os.listdir(edd_dir) if f.startswith("edd_") and f.endswith(".txt")] if os.path.exists(edd_dir) else []
+expected_edd_count = len(high_risk_customers)
 
-edd_dist = {"maintain_high": 0, "downgrade_medium": 0, "escalate": 0, "exit_recommend": 0}
-edd_count, edd_failed = 0, 0
+if len(existing_edds) >= expected_edd_count:
+    print(f"✅ EDD memos already exist: {len(existing_edds)} files found (expected {expected_edd_count})")
+    print("   Skipping EDD memo generation to save time.")
+    edd_count = len(existing_edds)
+    edd_failed = 0
+    edd_dist = {"maintain_high": 0, "downgrade_medium": 0, "escalate": 0, "exit_recommend": 0}
+else:
+    if len(existing_edds) > 0:
+        print(f"⚠️  Found {len(existing_edds)} existing EDD memos (expected {expected_edd_count})")
+        print("   Regenerating all EDD memos...")
 
-for idx, (_, cust_row) in enumerate(high_risk_customers.iterrows()):
-    customer = cust_row.to_dict()
-    cust_txns = transactions_df[transactions_df["customer_id"] == customer["customer_id"]]
-    
-    outcome = random.choices(["maintain_high", "downgrade_medium", "escalate", "exit_recommend"], weights=[50, 25, 15, 10])[0]
-    analyst = random.choice(edd_analysts)
-    print(f"\n[{idx+1}/{len(high_risk_customers)}] EDD {get_customer_name(customer)} - {outcome.upper()} (Analyst: {analyst})")
-    
-    memo = generate_with_llm(build_edd_prompt(customer, cust_txns, outcome, analyst, edd_supervisor))
-    if memo:
-        with open(f"{edd_dir}/edd_{customer['customer_id']:04d}.txt", 'w') as f: f.write(memo)
-        edd_count += 1
-        edd_dist[outcome] += 1
-    else: edd_failed += 1
+    # Get EDD team analysts and supervisor
+    edd_analysts = INVESTIGATION_TEAMS["Enhanced Due Diligence (EDD)"]["analysts"]
+    edd_supervisor = INVESTIGATION_TEAMS["Enhanced Due Diligence (EDD)"]["supervisors"][0]
 
-print(f"\nEDD Memos: {edd_count} generated, {edd_failed} failed | Distribution: {edd_dist}")
+    edd_dist = {"maintain_high": 0, "downgrade_medium": 0, "escalate": 0, "exit_recommend": 0}
+    edd_count, edd_failed = 0, 0
+
+    for idx, (_, cust_row) in enumerate(high_risk_customers.iterrows()):
+        customer = cust_row.to_dict()
+        cust_txns = transactions_df[transactions_df["customer_id"] == customer["customer_id"]]
+
+        outcome = random.choices(["maintain_high", "downgrade_medium", "escalate", "exit_recommend"], weights=[50, 25, 15, 10])[0]
+        analyst = random.choice(edd_analysts)
+        print(f"\n[{idx+1}/{len(high_risk_customers)}] EDD {get_customer_name(customer)} - {outcome.upper()} (Analyst: {analyst})")
+
+        memo = generate_with_llm(build_edd_prompt(customer, cust_txns, outcome, analyst, edd_supervisor))
+        if memo:
+            with open(f"{edd_dir}/edd_{customer['customer_id']:04d}.txt", 'w') as f: f.write(memo)
+            edd_count += 1
+            edd_dist[outcome] += 1
+        else: edd_failed += 1
+
+    print(f"\nEDD Memos: {edd_count} generated, {edd_failed} failed | Distribution: {edd_dist}")
 
 # COMMAND ----------
 
@@ -454,27 +527,42 @@ media_dir = f"{VOLUME_PATH}/adverse_media"
 os.makedirs(media_dir, exist_ok=True)
 print("="*70 + "\nGENERATING ADVERSE MEDIA REPORTS\n" + "="*70)
 
-# Get Sanctions team analysts and supervisor
-sanctions_analysts = INVESTIGATION_TEAMS["Sanctions & Watchlist Screening"]["analysts"]
-sanctions_supervisor = INVESTIGATION_TEAMS["Sanctions & Watchlist Screening"]["supervisors"][0]
+# Check if adverse media reports already exist
+existing_media = [f for f in os.listdir(media_dir) if f.startswith("screening_") and f.endswith(".txt")] if os.path.exists(media_dir) else []
+expected_media_count = len(high_risk_customers)
 
-media_dist = {"none": 0, "cleared": 0, "flagged": 0}
-media_count, media_failed = 0, 0
+if len(existing_media) >= expected_media_count:
+    print(f"✅ Adverse media reports already exist: {len(existing_media)} files found (expected {expected_media_count})")
+    print("   Skipping adverse media generation to save time.")
+    media_count = len(existing_media)
+    media_failed = 0
+    media_dist = {"none": 0, "cleared": 0, "flagged": 0}
+else:
+    if len(existing_media) > 0:
+        print(f"⚠️  Found {len(existing_media)} existing adverse media reports (expected {expected_media_count})")
+        print("   Regenerating all adverse media reports...")
 
-for idx, (_, cust_row) in enumerate(high_risk_customers.iterrows()):
-    customer = cust_row.to_dict()
-    finding = random.choices(["none", "cleared", "flagged"], weights=[60, 25, 15])[0]
-    analyst = random.choice(sanctions_analysts)
-    print(f"\n[{idx+1}/{len(high_risk_customers)}] Media {get_customer_name(customer)} - {finding.upper()} (Analyst: {analyst})")
-    
-    report = generate_with_llm(build_adverse_media_prompt(customer, finding, analyst, sanctions_supervisor))
-    if report:
-        with open(f"{media_dir}/screening_{customer['customer_id']:04d}.txt", 'w') as f: f.write(report)
-        media_count += 1
-        media_dist[finding] += 1
-    else: media_failed += 1
+    # Get Sanctions team analysts and supervisor
+    sanctions_analysts = INVESTIGATION_TEAMS["Sanctions & Watchlist Screening"]["analysts"]
+    sanctions_supervisor = INVESTIGATION_TEAMS["Sanctions & Watchlist Screening"]["supervisors"][0]
 
-print(f"\nAdverse Media: {media_count} generated, {media_failed} failed | Distribution: {media_dist}")
+    media_dist = {"none": 0, "cleared": 0, "flagged": 0}
+    media_count, media_failed = 0, 0
+
+    for idx, (_, cust_row) in enumerate(high_risk_customers.iterrows()):
+        customer = cust_row.to_dict()
+        finding = random.choices(["none", "cleared", "flagged"], weights=[60, 25, 15])[0]
+        analyst = random.choice(sanctions_analysts)
+        print(f"\n[{idx+1}/{len(high_risk_customers)}] Media {get_customer_name(customer)} - {finding.upper()} (Analyst: {analyst})")
+
+        report = generate_with_llm(build_adverse_media_prompt(customer, finding, analyst, sanctions_supervisor))
+        if report:
+            with open(f"{media_dir}/screening_{customer['customer_id']:04d}.txt", 'w') as f: f.write(report)
+            media_count += 1
+            media_dist[finding] += 1
+        else: media_failed += 1
+
+    print(f"\nAdverse Media: {media_count} generated, {media_failed} failed | Distribution: {media_dist}")
 
 # COMMAND ----------
 
@@ -530,24 +618,39 @@ corr_dir = f"{VOLUME_PATH}/correspondence"
 os.makedirs(corr_dir, exist_ok=True)
 print("="*70 + "\nGENERATING CORRESPONDENCE LOGS\n" + "="*70)
 
-corr_dist = {"routine_positive": 0, "routine_neutral": 0, "minor_concern": 0, "significant_concern": 0}
-corr_count, corr_failed = 0, 0
+# Check if correspondence logs already exist
+existing_corr = [f for f in os.listdir(corr_dir) if f.startswith("corr_") and f.endswith(".txt")] if os.path.exists(corr_dir) else []
+expected_corr_count = len(high_risk_customers)
 
-for idx, (_, cust_row) in enumerate(high_risk_customers.iterrows()):
-    customer = cust_row.to_dict()
-    cust_txns = transactions_df[transactions_df["customer_id"] == customer["customer_id"]]
-    
-    interaction = random.choices(["routine_positive", "routine_neutral", "minor_concern", "significant_concern"], weights=[40, 25, 20, 15])[0]
-    print(f"\n[{idx+1}/{len(high_risk_customers)}] Corr {get_customer_name(customer)} - {interaction.upper()}")
-    
-    log = generate_with_llm(build_correspondence_prompt(customer, cust_txns, interaction))
-    if log:
-        with open(f"{corr_dir}/corr_{customer['customer_id']:04d}.txt", 'w') as f: f.write(log)
-        corr_count += 1
-        corr_dist[interaction] += 1
-    else: corr_failed += 1
+if len(existing_corr) >= expected_corr_count:
+    print(f"✅ Correspondence logs already exist: {len(existing_corr)} files found (expected {expected_corr_count})")
+    print("   Skipping correspondence generation to save time.")
+    corr_count = len(existing_corr)
+    corr_failed = 0
+    corr_dist = {"routine_positive": 0, "routine_neutral": 0, "minor_concern": 0, "significant_concern": 0}
+else:
+    if len(existing_corr) > 0:
+        print(f"⚠️  Found {len(existing_corr)} existing correspondence logs (expected {expected_corr_count})")
+        print("   Regenerating all correspondence logs...")
 
-print(f"\nCorrespondence: {corr_count} generated, {corr_failed} failed | Distribution: {corr_dist}")
+    corr_dist = {"routine_positive": 0, "routine_neutral": 0, "minor_concern": 0, "significant_concern": 0}
+    corr_count, corr_failed = 0, 0
+
+    for idx, (_, cust_row) in enumerate(high_risk_customers.iterrows()):
+        customer = cust_row.to_dict()
+        cust_txns = transactions_df[transactions_df["customer_id"] == customer["customer_id"]]
+
+        interaction = random.choices(["routine_positive", "routine_neutral", "minor_concern", "significant_concern"], weights=[40, 25, 20, 15])[0]
+        print(f"\n[{idx+1}/{len(high_risk_customers)}] Corr {get_customer_name(customer)} - {interaction.upper()}")
+
+        log = generate_with_llm(build_correspondence_prompt(customer, cust_txns, interaction))
+        if log:
+            with open(f"{corr_dir}/corr_{customer['customer_id']:04d}.txt", 'w') as f: f.write(log)
+            corr_count += 1
+            corr_dist[interaction] += 1
+        else: corr_failed += 1
+
+    print(f"\nCorrespondence: {corr_count} generated, {corr_failed} failed | Distribution: {corr_dist}")
 
 # COMMAND ----------
 

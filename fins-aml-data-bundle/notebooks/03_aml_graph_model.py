@@ -24,8 +24,48 @@
 
 # COMMAND ----------
 
-CATALOG = "fins_aml"
-SCHEMA = "data_generation"
+# Install required packages
+%pip install faker --quiet
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
+# Create widgets for parameters
+dbutils.widgets.text("catalog", "fins_aml", "Catalog Name")
+dbutils.widgets.text("schema", "data_generation", "Schema Name")
+
+# Get parameters from widgets
+CATALOG = dbutils.widgets.get("catalog")
+SCHEMA = dbutils.widgets.get("schema")
+
+print(f"Parameters: CATALOG={CATALOG}, SCHEMA={SCHEMA}")
+
+# Set up catalog and schema
+spark.sql(f"USE CATALOG {CATALOG}")
+spark.sql(f"USE SCHEMA {SCHEMA}")
+print(f"✅ Using catalog: {CATALOG}, schema: {SCHEMA}")
+
+# Create volume if it doesn't exist
+try:
+    # First check if volume exists
+    volumes = spark.sql(f"SHOW VOLUMES IN {CATALOG}.{SCHEMA}").collect()
+    volume_names = [v['volume_name'] for v in volumes]
+
+    if 'exports' not in volume_names:
+        print(f"Creating volume {CATALOG}.{SCHEMA}.exports...")
+        spark.sql(f"CREATE VOLUME {CATALOG}.{SCHEMA}.exports")
+        print(f"✅ Created volume: {CATALOG}.{SCHEMA}.exports")
+    else:
+        print(f"✅ Volume already exists: {CATALOG}.{SCHEMA}.exports")
+except Exception as e:
+    print(f"⚠️ Error with volume: {str(e)}")
+    # Try alternative approach
+    try:
+        spark.sql(f"CREATE VOLUME IF NOT EXISTS {CATALOG}.{SCHEMA}.exports")
+        print(f"✅ Created/verified volume: {CATALOG}.{SCHEMA}.exports")
+    except Exception as e2:
+        print(f"❌ Could not create volume: {str(e2)}")
+        raise ValueError(f"Unable to create or access volume {CATALOG}.{SCHEMA}.exports. Please ensure the schema exists and you have permission to create volumes.")
 
 # COMMAND ----------
 

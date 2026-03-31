@@ -29,14 +29,140 @@
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Install Required Packages
+
+# COMMAND ----------
+
+# Install required packages
+# Note: In serverless environments, packages must be installed without Python restart
+%pip install faker --quiet
+
+# Check if we're in a serverless environment by trying to restart Python
+try:
+    dbutils.library.restartPython()
+except Exception as e:
+    # In serverless, restartPython is not supported - continue without restart
+    print("Note: Running in serverless environment - continuing without Python restart")
+    pass
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Configuration
 
 # COMMAND ----------
 
-# Configuration
-CATALOG = "fins_aml"
-SCHEMA = "data_generation"
+# Create widgets for parameters
+dbutils.widgets.text("catalog", "fins_aml", "Catalog Name")
+dbutils.widgets.text("schema", "data_generation", "Schema Name")
+dbutils.widgets.text("force_rebuild", "false", "Force Rebuild (true/false)")
+
+# Get parameters from widgets
+CATALOG = dbutils.widgets.get("catalog")
+SCHEMA = dbutils.widgets.get("schema")
+FORCE_REBUILD = dbutils.widgets.get("force_rebuild").lower() == "true"
 NUM_CUSTOMERS = 500
+
+print(f"Parameters: CATALOG={CATALOG}, SCHEMA={SCHEMA}, FORCE_REBUILD={FORCE_REBUILD}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Setup Catalog and Schema
+
+# COMMAND ----------
+
+# Check if catalog exists
+catalog_exists = False
+try:
+    # Try to use the catalog - this will fail if it doesn't exist
+    spark.sql(f"USE CATALOG {CATALOG}")
+    catalog_exists = True
+    print(f"✅ Using catalog: {CATALOG}")
+except Exception as e:
+    # Catalog doesn't exist - try to create it
+    print(f"⚠️ Catalog '{CATALOG}' not found. Attempting to create it...")
+
+    try:
+        # Try simple catalog creation
+        spark.sql(f"CREATE CATALOG IF NOT EXISTS {CATALOG}")
+        spark.sql(f"USE CATALOG {CATALOG}")
+        print(f"✅ Created and using new catalog: {CATALOG}")
+        catalog_exists = True
+    except Exception as create_error:
+        # Can't create catalog - likely due to permissions in shared environment
+        print(f"❌ Cannot create catalog '{CATALOG}'")
+        print(f"   Error: {str(create_error)[:200]}")
+        print(f"\n   This is likely due to restricted permissions in this shared environment.")
+
+        # List available catalogs for user
+        print(f"\n📋 Available catalogs:")
+        available_catalogs = spark.sql("SHOW CATALOGS").collect()
+        user_catalogs = [cat['catalog'] for cat in available_catalogs
+                        if cat['catalog'] not in ['system', 'samples', 'hive_metastore']]
+        for cat in user_catalogs:
+            print(f"   • {cat}")
+
+        print(f"\n💡 Please redeploy with an existing catalog:")
+        print(f"   databricks bundle run aml_data_generation_pipeline --profile fevm-fins-demo \\")
+        print(f"     --var='catalog=fins_aml' --var='schema={SCHEMA}' --var='warehouse_id=<your-warehouse-id>'")
+
+        raise ValueError(f"Catalog '{CATALOG}' does not exist and cannot be created. Please use an existing catalog.")
+
+# COMMAND ----------
+
+# Create schema if not exists
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
+spark.sql(f"USE CATALOG {CATALOG}")
+spark.sql(f"USE SCHEMA {SCHEMA}")
+print(f"✅ Using catalog: {CATALOG}, schema: {SCHEMA}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Check Existing Data
+
+# COMMAND ----------
+
+# Check if tables already exist - with detailed debugging
+def table_exists(catalog, schema, table):
+    try:
+        # First, let's see what tables are actually in this schema
+        all_tables = spark.sql(f"SHOW TABLES IN {catalog}.{schema}").collect()
+        table_names = [t['tableName'] for t in all_tables]
+
+        if table in table_names:
+            print(f"  ✓ Found table '{table}' in {catalog}.{schema}")
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f"  × Error checking for table '{table}': {str(e)[:100]}")
+        return False
+
+# Check core tables
+tables_to_check = ["customers", "accounts", "transactions", "watchlists", "alerts", "cases", "sar_filings"]
+print(f"Checking for existing tables in {CATALOG}.{SCHEMA}...")
+
+# First show what tables are actually in this schema
+try:
+    existing_in_schema = spark.sql(f"SHOW TABLES IN {CATALOG}.{SCHEMA}").collect()
+    print(f"Tables currently in {CATALOG}.{SCHEMA}: {[t['tableName'] for t in existing_in_schema]}")
+except Exception as e:
+    print(f"Could not list tables in {CATALOG}.{SCHEMA}: {str(e)[:200]}")
+
+existing_tables = [t for t in tables_to_check if table_exists(CATALOG, SCHEMA, t)]
+
+if existing_tables and not FORCE_REBUILD:
+    print(f"⚠️ Tables already exist in {CATALOG}.{SCHEMA}: {existing_tables}")
+    print("Skipping data generation. Set force_rebuild=true to regenerate data.")
+    dbutils.notebook.exit("Tables already exist - skipping generation")
+elif existing_tables and FORCE_REBUILD:
+    print(f"🔄 Force rebuild enabled. Dropping existing tables: {existing_tables}")
+    for table in existing_tables:
+        spark.sql(f"DROP TABLE IF EXISTS {CATALOG}.{SCHEMA}.{table}")
+else:
+    print("✅ No existing tables found. Proceeding with data generation.")
 NUM_MONTHS_HISTORY = 12
 
 # LLM endpoint for memo generation

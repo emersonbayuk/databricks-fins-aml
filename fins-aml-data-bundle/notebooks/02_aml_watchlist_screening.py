@@ -22,8 +22,41 @@
 
 # COMMAND ----------
 
-CATALOG = "fins_aml"
-SCHEMA = "data_generation"
+# MAGIC %md
+# MAGIC ## Install Required Packages
+
+# COMMAND ----------
+
+# Install required packages
+# Note: In serverless environments, packages must be installed without Python restart
+%pip install faker --quiet
+
+# Check if we're in a serverless environment by trying to restart Python
+try:
+    dbutils.library.restartPython()
+except Exception as e:
+    # In serverless, restartPython is not supported - continue without restart
+    print("Note: Running in serverless environment - continuing without Python restart")
+    pass
+
+# COMMAND ----------
+
+# Create widgets for parameters
+dbutils.widgets.text("catalog", "fins_aml", "Catalog Name")
+dbutils.widgets.text("schema", "data_generation", "Schema Name")
+
+# Get parameters from widgets
+CATALOG = dbutils.widgets.get("catalog")
+SCHEMA = dbutils.widgets.get("schema")
+
+print(f"Parameters: CATALOG={CATALOG}, SCHEMA={SCHEMA}")
+
+# COMMAND ----------
+
+# Set up catalog and schema
+spark.sql(f"USE CATALOG {CATALOG}")
+spark.sql(f"USE SCHEMA {SCHEMA}")
+print(f"✅ Using catalog: {CATALOG}, schema: {SCHEMA}")
 
 # COMMAND ----------
 

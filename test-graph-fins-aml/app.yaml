@@ -1,0 +1,36 @@
+name: test-graph-fins-aml
+display_name: "Test Graph FINS AML Investigation Platform"
+description: "AI-powered Anti-Money Laundering investigation platform with native Databricks graph visualization"
+
+command: [
+  "uvicorn",
+  "main:app",
+  "--host=0.0.0.0",
+  "--port=8000"
+]
+
+resources:
+  - name: sql_warehouse
+    type: sql_warehouse
+    permission: CAN_USE
+  # REMOVED: Secret no longer needed - using SP authentication
+
+env:
+  # Resource-bound values (resolved by Databricks Apps runtime)
+  - name: 'DATABRICKS_WAREHOUSE_ID'
+    valueFrom: sql_warehouse
+  # REMOVED: DATABRICKS_TOKEN - no longer needed with SP auth
+
+  # Per-target values — update these for FEVM workspace
+  - name: 'DATABRICKS_HOSTNAME'
+    value: 'fevm-fins-demo.cloud.databricks.com'
+  - name: 'DATABRICKS_WORKSPACE_ID'
+    value: '7474649573853836'
+  - name: 'DATABRICKS_DASHBOARD_ID'
+    value: '01f127b9372c1c4f850385353803dd0f'
+  - name: 'DATABRICKS_CATALOG'
+    value: 'fins_aml'
+  - name: 'DATABRICKS_SCHEMA'
+    value: 'data_generation'
+  - name: 'MAS_ENDPOINT_URL'
+    value: 'https://fevm-fins-demo.cloud.databricks.com/serving-endpoints/mas-endpoint/invocations'
