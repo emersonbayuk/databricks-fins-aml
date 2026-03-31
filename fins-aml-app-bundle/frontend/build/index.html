@@ -1539,18 +1539,20 @@
                                 'text-outline-width': 2,
                                 'text-outline-color': 'data(color)',
                                 'width': (ele) => {
-                                    const type = ele.data('type');
-                                    return type === 'Customer' ? 80 :
-                                           type === 'Alert' ? 70 :
-                                           type === 'Transaction' ? 60 : 50;
+                                    const type = (ele.data('type') || '').toLowerCase();
+                                    return type === 'customer' ? 80 :
+                                           type === 'alert' ? 70 :
+                                           type === 'counterparty' ? 60 :
+                                           type === 'account' ? 55 : 50;
                                 },
                                 'height': (ele) => {
-                                    const type = ele.data('type');
-                                    return type === 'Customer' ? 80 :
-                                           type === 'Alert' ? 70 :
-                                           type === 'Transaction' ? 60 : 50;
+                                    const type = (ele.data('type') || '').toLowerCase();
+                                    return type === 'customer' ? 80 :
+                                           type === 'alert' ? 70 :
+                                           type === 'counterparty' ? 60 :
+                                           type === 'account' ? 55 : 50;
                                 },
-                                'border-width': (ele) => ele.data('type') === 'Customer' ? 3 : 0,
+                                'border-width': (ele) => (ele.data('type') || '').toLowerCase() === 'customer' ? 3 : 0,
                                 'border-color': '#D4AF37',
                                 'overlay-padding': '6px'
                             }
@@ -1768,22 +1770,28 @@
 
                         if (data && data.nodes && data.nodes.length > 0) {
                             // Transform data for visualization
+                            // Color map for node types (case-insensitive)
+                            const nodeColorMap = {
+                                'customer': '#1D4ED8',      // Primary Blue
+                                'alert': '#BD2B26',         // Red
+                                'account': '#7FB3D5',       // Sky Blue
+                                'counterparty': '#D4AF37',  // Rich Gold
+                                'watchlist': '#730D21',      // Dark Red
+                                'transaction': '#64748B',    // Grey
+                                'entity': '#D4AF37',         // Rich Gold (fallback for demo data)
+                            };
                             const transformedNodes = data.nodes.map((node, index) => {
                                 const angle = (2 * Math.PI * index) / data.nodes.length;
-                                const radius = node.labels?.includes('Customer') ? 0 : 35;
+                                const nodeType = (node.type || node.labels?.[0] || 'unknown').toLowerCase();
+                                const radius = nodeType === 'customer' ? 0 : 35;
                                 return {
                                     id: node.id,
                                     label: node.caption || node.properties?.node_label || node.properties?.name || node.properties?.customer_name || `Node ${node.id}`,
-                                    type: node.labels?.[0] || 'Unknown',
-                                    size: node.labels?.includes('Customer') ? 40 :
-                                           node.labels?.includes('Alert') ? 35 :
-                                           node.labels?.includes('Transaction') ? 30 : 25,
-                                    color: node.labels?.includes('Customer') ? colors.accent.blue :
-                                           node.labels?.includes('Transaction') ? colors.accent.emerald :
-                                           node.labels?.includes('Account') ? colors.accent.violet :
-                                           node.labels?.includes('Alert') ? colors.accent.rose :
-                                           node.labels?.includes('Entity') ? colors.accent.amber :
-                                           colors.text.secondary,
+                                    type: nodeType,
+                                    size: nodeType === 'customer' ? 40 :
+                                           nodeType === 'alert' ? 35 :
+                                           nodeType === 'transaction' ? 30 : 25,
+                                    color: node.color || nodeColorMap[nodeType] || '#64748B',
                                     x: 50 + Math.cos(angle) * radius,
                                     y: 50 + Math.sin(angle) * radius * 0.7
                                 };

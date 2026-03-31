@@ -46,6 +46,15 @@ targets:
       catalog: "financial_services"
       schema: "fincrime"
 
+  fevm-fins-demo:
+    workspace:
+      host: https://fevm-fins-demo.cloud.databricks.com
+    variables:
+      databricks_hostname: "fevm-fins-demo.cloud.databricks.com"
+      workspace_id: "7474649573853836"
+      warehouse_id: "192fe959f141d27c"
+      dashboard_id: "01f127b9372c1c4f850385353803dd0f"
+
 resources:
   apps:
     fins-aml-platform:
