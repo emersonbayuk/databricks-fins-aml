@@ -17,7 +17,7 @@ This repo contains two independent Databricks Asset Bundles. The **data bundle**
 
 **Deploy order**: Data bundle first (creates tables + dashboard), then app bundle (needs the tables to exist and the dashboard ID to reference).
 
-**Everything else is independent**: the app bundle has additional variables (`mas_endpoint_url`, `neo4j_uri`, `databricks_hostname`, `workspace_id`, etc.) that have no counterpart in the data bundle.
+**Everything else is independent**: the app bundle has additional variables (`mas_endpoint_url`, `databricks_hostname`, `workspace_id`, etc.) that have no counterpart in the data bundle.
 
 ---
 
@@ -32,7 +32,6 @@ Before deploying, gather these values from your target workspace:
 | **SQL Warehouse ID** | SQL Warehouses page -> copy ID |
 | **Dashboard ID** | Open dashboard -> ID in URL (`/dashboards/<id>`), or from data bundle output |
 | **MAS endpoint URL** | Serving Endpoints -> your MAS endpoint -> full invocation URL |
-| **Neo4j URI / password** | Neo4j Aura console (if using graph features) |
 | **Unity Catalog / Schema** | The catalog and schema where AML tables live (must match data bundle) |
 | **Databricks CLI profile** | `~/.databrickscfg` profile name for the target workspace |
 
@@ -86,10 +85,9 @@ targets:
       schema: "data_generation"
       mas_endpoint_url: "https://my-workspace.cloud.databricks.com/serving-endpoints/my-mas/invocations"
       dashboard_id: "your-dashboard-id"
-      neo4j_uri: "neo4j+s://xxx.databases.neo4j.io"
 ```
 
-Variables with defaults (`catalog`, `schema`, `neo4j_user`, `neo4j_database`, `mas_endpoint_url`, `neo4j_uri`, `dashboard_id`) can be omitted if the defaults are acceptable.
+Variables with defaults (`catalog`, `schema`, `mas_endpoint_url`, `dashboard_id`) can be omitted if the defaults are acceptable.
 
 ### Step 2: Deploy the bundle
 
@@ -118,9 +116,8 @@ After the first deploy, open the app in the Databricks UI (**Apps -> fins-aml-pl
 |---|---|---|
 | `sql_warehouse` | SQL Warehouse | Select your SQL warehouse (provides `DATABRICKS_WAREHOUSE_ID`) |
 | `serving.serving-endpoints` | Serving Endpoint | Maps to your MAS agent endpoint (grants `CAN_QUERY`) |
-| `secret-2` | Secret | Your Neo4j password (required for graph features) |
 
-No PAT secret is needed -- the app authenticates via the auto-injected service principal.
+No PAT or external database secrets are needed -- the app authenticates via the auto-injected service principal, and the graph visualization uses native Databricks tables.
 
 ### Step 4: Grant permissions
 
@@ -141,7 +138,6 @@ If you omit optional variables (those with `default: ""`), the corresponding fea
 | Variable | Default | Feature affected | What happens |
 |---|---|---|---|
 | `mas_endpoint_url` | `""` | AI Investigation Chat, SAR Narrative Generation | Chat returns an error; SAR generation falls back to a template narrative |
-| `neo4j_uri` | `""` | Network Graph visualization | Graph panel shows an error; all other investigation features work |
 | `dashboard_id` | `""` | Executive Overview (embedded dashboard) | Executive tab shows a loading state; Alert Investigation tab works normally |
 
 ---
@@ -183,14 +179,6 @@ If you omit optional variables (those with `default: ""`), the corresponding fea
 | `DATABRICKS_SCHEMA` | `schema` | `data_generation` |
 | `DATABRICKS_DASHBOARD_ID` | `dashboard_id` | `""` |
 | `MAS_ENDPOINT_URL` | `mas_endpoint_url` | `""` |
-| `NEO4J_URI` | `neo4j_uri` | `""` |
-| `NEO4J_USER` | `neo4j_user` | `neo4j` |
-| `NEO4J_DATABASE` | `neo4j_database` | `neo4j` |
-
-### From app secrets
-| Variable | Secret resource | Description |
-|---|---|---|
-| `NEO4J_PASSWORD` | `secret-2` | Neo4j Aura password |
 
 ---
 

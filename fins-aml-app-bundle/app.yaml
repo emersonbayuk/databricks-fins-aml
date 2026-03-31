@@ -22,8 +22,6 @@ env:
   # are auto-injected by the Databricks Apps runtime for the app's service principal.
   - name: 'DATABRICKS_WAREHOUSE_ID'
     valueFrom: sql_warehouse
-  - name: 'NEO4J_PASSWORD'
-    valueFrom: secret-2
 
   # Per-target values — resolved automatically from databricks.yml variables
   - name: 'DATABRICKS_HOSTNAME'
@@ -38,9 +36,3 @@ env:
     value: '${var.schema}'
   - name: 'MAS_ENDPOINT_URL'
     value: '${var.mas_endpoint_url}'
-  - name: 'NEO4J_URI'
-    value: '${var.neo4j_uri}'
-  - name: 'NEO4J_USER'
-    value: '${var.neo4j_user}'
-  - name: 'NEO4J_DATABASE'
-    value: '${var.neo4j_database}'

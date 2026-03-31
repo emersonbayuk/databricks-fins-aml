@@ -1406,29 +1406,29 @@
         };
 
 
-        // Neo4j Network Graph Component with Live Data
+        // Network Graph Component with Live Data
         const NetworkGraph = ({ alert }) => {
             const [graphData, setGraphData] = useState({ nodes: [], relationships: [] });
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
-            const [neo4jStatus, setNeo4jStatus] = useState('Not tested');
+            const [graphStatus, setGraphStatus] = useState('Not tested');
             const graphContainerRef = useRef(null);
             const cyRef = useRef(null);
 
-            // Test Neo4j connection
-            const testNeo4jConnection = async () => {
-                console.log('Testing Neo4j connection...');
+            // Test Graph connection
+            const testGraphConnection = async () => {
+                console.log('Testing Graph connection...');
                 try {
                     // Try multiple endpoints to diagnose the issue
                     const currentAlert = alert; // Store the alert prop to avoid confusion with window.alert
                     const endpoints = [
-                        '/api/graph/ping',
-                        '/api/graph/health',
-                        '/api/graph/test',
-                        `/api/graph/demo/${currentAlert?.customer_id || 'TEST'}`,
+                        '/api/databricks-graph/graph/ping',
+                        '/api/databricks-graph/graph/health',
+                        '/api/databricks-graph/graph/test',
+                        `/api/databricks-graph/graph/demo/${currentAlert?.customer_id || 'TEST'}`,
                         currentAlert?.customer_name
-                            ? `/api/graph/customer/${currentAlert?.customer_id || '112'}?customer_name=${encodeURIComponent(currentAlert.customer_name)}&depth=2&limit=10`
-                            : `/api/graph/customer/${currentAlert?.customer_id || '112'}?depth=2&limit=10`
+                            ? `/api/databricks-graph/graph/customer/${currentAlert?.customer_id || '112'}?customer_name=${encodeURIComponent(currentAlert.customer_name)}&depth=2&limit=10`
+                            : `/api/databricks-graph/graph/customer/${currentAlert?.customer_id || '112'}?depth=2&limit=10`
                     ];
 
                     let anySuccess = false;
@@ -1450,15 +1450,15 @@
                     }
 
                     if (anySuccess) {
-                        setNeo4jStatus('✅ API endpoints accessible');
-                        window.alert('Neo4j API Test Results:\n\n' + results.join('\n'));
+                        setGraphStatus('✅ API endpoints accessible');
+                        window.alert('Graph API Test Results:\n\n' + results.join('\n'));
                     } else {
-                        setNeo4jStatus('⚠️ APIs not responding - using demo data');
-                        window.alert('Neo4j API Connection Issue:\n\nAll API endpoints are not responding properly.\nUsing hardcoded demo data for visualization.\n\nTested endpoints:\n' + results.join('\n'));
+                        setGraphStatus('⚠️ APIs not responding - using demo data');
+                        window.alert('Graph API Connection Issue:\n\nAll API endpoints are not responding properly.\nUsing hardcoded demo data for visualization.\n\nTested endpoints:\n' + results.join('\n'));
                     }
                 } catch (error) {
-                    console.error('Neo4j connection test failed:', error);
-                    setNeo4jStatus('❌ Error: ' + error.message);
+                    console.error('Graph connection test failed:', error);
+                    setGraphStatus('❌ Error: ' + error.message);
                     window.alert('Connection test error: ' + error.message);
                 }
             };
@@ -1657,7 +1657,7 @@
                 };
             }, [graphData, loading]);
 
-            // Fetch graph data from Neo4j
+            // Fetch graph data from Databricks graph
             useEffect(() => {
                 const fetchGraph = async () => {
                     console.log('NetworkGraph mounted with alert:', alert);
@@ -1674,36 +1674,36 @@
                         setError(null);
 
                         // Try to fetch from API endpoints
-                        const demoUrl = `/api/graph/demo/${alert.customer_id}`;
+                        const demoUrl = `/api/databricks-graph/graph/demo/${alert.customer_id}`;
                         // Include customer_name in the query if available
                         const customerName = alert?.customer_name || '';
-                        const neo4jUrl = customerName
-                            ? `/api/graph/customer/${alert.customer_id}?customer_name=${encodeURIComponent(customerName)}&depth=2&limit=100`
-                            : `/api/graph/customer/${alert.customer_id}?depth=2&limit=100`;
+                        const graphUrl = customerName
+                            ? `/api/databricks-graph/graph/customer/${alert.customer_id}?customer_name=${encodeURIComponent(customerName)}&depth=2&limit=100`
+                            : `/api/databricks-graph/graph/customer/${alert.customer_id}?depth=2&limit=100`;
 
                         console.log('Attempting to fetch graph data...');
                         console.log('Customer name:', customerName);
-                        console.log('Neo4j URL:', neo4jUrl);
+                        console.log('Graph URL:', graphUrl);
 
                         let data = null;
                         let apiWorked = false;
 
-                        // Try Neo4j endpoint FIRST (real data)
+                        // Try Databricks graph endpoint FIRST (real data)
                         try {
-                            const response = await fetch(neo4jUrl);
+                            const response = await fetch(graphUrl);
                             if (response.ok) {
                                 data = await response.json();
                                 if (data && data.nodes && data.nodes.length > 0) {
                                     apiWorked = true;
-                                    console.log('Neo4j API successful - using real customer data');
+                                    console.log('Graph API successful - using real customer data');
                                     console.log(`Found ${data.nodes.length} nodes and ${data.relationships.length} relationships`);
                                 }
                             }
                         } catch (e) {
-                            console.log('Neo4j API failed:', e);
+                            console.log('Graph API failed:', e);
                         }
 
-                        // Try demo endpoint as fallback if Neo4j didn't work
+                        // Try demo endpoint as fallback if Databricks graph didn't work
                         if (!apiWorked) {
                             try {
                                 const response = await fetch(demoUrl);
@@ -1712,7 +1712,7 @@
                                     if (data && data.nodes && data.nodes.length > 0) {
                                         apiWorked = true;
                                         console.log('Using demo API as fallback');
-                                        setError('Using demo data - Neo4j query returned no results');
+                                        setError('Using demo data - Databricks graph query returned no results');
                                     }
                                 }
                             } catch (e) {
@@ -1723,7 +1723,7 @@
                         // Try by-name endpoint as last resort if we have customer name
                         if (!apiWorked && customerName) {
                             try {
-                                const byNameUrl = `/api/graph/customer/by-name?name=${encodeURIComponent(customerName)}&depth=2&limit=100`;
+                                const byNameUrl = `/api/databricks-graph/graph/customer/by-name?name=${encodeURIComponent(customerName)}&depth=2&limit=100`;
                                 console.log('Trying by-name endpoint:', byNameUrl);
                                 const response = await fetch(byNameUrl);
                                 if (response.ok) {
@@ -1740,7 +1740,7 @@
 
                         // Use hardcoded demo data if APIs don't work
                         if (!apiWorked) {
-                            console.log('Using hardcoded demo data for Neo4j visualization');
+                            console.log('Using hardcoded demo data for Databricks graph visualization');
                             data = {
                                 nodes: [
                                     {id: "1", labels: ["Customer"], properties: {name: alert?.customer_name || `Customer ${alert.customer_id}`, risk_level: "High"}, caption: alert?.customer_name || `Customer ${alert.customer_id}`},
@@ -1763,7 +1763,7 @@
                                     {id: "r8", from: "5", to: "8", type: "CONNECTED_TO", properties: {}, caption: "CONNECTED"}
                                 ]
                             };
-                            setError('Using demo data - Neo4j connection pending');
+                            setError('Using demo data - Graph connection pending');
                         }
 
                         if (data && data.nodes && data.nodes.length > 0) {
@@ -1846,8 +1846,8 @@
                         flexDirection: 'column',
                         justifyContent: 'center'
                     }}>
-                        <h4 style={{ margin: '0 0 1rem 0', color: colors.text.primary }}>Neo4j Network Graph</h4>
-                        <p style={{ color: colors.text.secondary }}>Connecting to Neo4j Aura...</p>
+                        <h4 style={{ margin: '0 0 1rem 0', color: colors.text.primary }}>Network Graph</h4>
+                        <p style={{ color: colors.text.secondary }}>Connecting to Databricks...</p>
                         <div style={{ marginTop: '1rem' }}>
                             <span style={{
                                 display: 'inline-block',
@@ -1878,7 +1878,7 @@
                         marginBottom: '1rem'
                     }}>
                         <h4 style={{ margin: 0, color: colors.text.primary }}>
-                            Neo4j Network Graph
+                            Network Graph
                             {error && (
                                 <span style={{
                                     fontSize: '0.7rem',
@@ -1892,7 +1892,7 @@
                         </h4>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             <button
-                                onClick={testNeo4jConnection}
+                                onClick={testGraphConnection}
                                 style={{
                                     background: colors.accent.blue,
                                     color: 'white',
@@ -1904,10 +1904,10 @@
                                     fontWeight: '600'
                                 }}
                             >
-                                Test Neo4j Connection
+                                Test Graph Connection
                             </button>
                             <div style={{ fontSize: '0.75rem', color: colors.text.secondary }}>
-                                Status: {neo4jStatus}
+                                Status: {graphStatus}
                             </div>
                             <div style={{ fontSize: '0.75rem', color: colors.text.secondary }}>
                                 Instance: 398dd975

@@ -109,12 +109,6 @@ def get_sql_credentials_provider():
 # MAS Agent Endpoint
 MAS_ENDPOINT_URL = os.getenv("MAS_ENDPOINT_URL", "")
 
-# Neo4j
-NEO4J_URI = os.getenv("NEO4J_URI", "")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
-NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
-
 # Dashboard Embedding
 DASHBOARD_ID = os.getenv("DATABRICKS_DASHBOARD_ID", "")
 
