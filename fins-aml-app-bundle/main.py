@@ -26,13 +26,13 @@ from backend.api.sar import router as sar_router
 from backend.api.documents import router as documents_router
 from backend.api.auth import router as auth_router
 
-logger.info("Loading Neo4j router...")
+logger.info("Loading Databricks graph router...")
 try:
-    from backend.api.neo4j_graph import router as neo4j_router
-    logger.info("✅ Neo4j router loaded successfully")
+    from backend.api.databricks_graph import router as databricks_graph_router
+    logger.info("✅ Databricks graph router loaded successfully")
 except Exception as e:
-    logger.error(f"❌ Failed to load Neo4j router: {e}")
-    neo4j_router = None
+    logger.error(f"❌ Failed to load Databricks graph router: {e}")
+    databricks_graph_router = None
 
 # Import database service
 from backend.services.database import DatabaseService
@@ -77,12 +77,12 @@ app.include_router(sar_router, prefix="/api/sar", tags=["sar"])
 app.include_router(documents_router, prefix="/api/documents", tags=["documents"])
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
-# Include Neo4j router if it loaded successfully
-if neo4j_router:
-    app.include_router(neo4j_router, prefix="/api", tags=["neo4j"])
-    logger.info("✅ Neo4j router registered with app")
+# Include Databricks graph router if it loaded successfully
+if databricks_graph_router:
+    app.include_router(databricks_graph_router, prefix="/api/databricks-graph", tags=["graph"])
+    logger.info("✅ Databricks graph router registered with app")
 else:
-    logger.error("❌ Neo4j router not registered (failed to import)")
+    logger.error("❌ Databricks graph router not registered (failed to import)")
 
 # Debug routes for development
 from backend.api import debug as debug_router
