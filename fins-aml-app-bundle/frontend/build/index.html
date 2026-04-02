@@ -43,15 +43,10 @@
     <!-- AIBI Client will be loaded dynamically as ES module -->
     <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
     <script>
-        // Wait for Cytoscape to load before loading fcose
+        // Cytoscape is loaded above — using built-in 'cose' layout (no fcose plugin needed)
         window.addEventListener('load', function() {
             if (window.cytoscape) {
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js';
-                script.onload = function() {
-                    console.log('Cytoscape fcose layout loaded');
-                };
-                document.head.appendChild(script);
+                console.log('Cytoscape loaded successfully');
             }
         });
     </script>
@@ -1534,10 +1529,13 @@
                                 'label': 'data(label)',
                                 'text-valign': 'center',
                                 'text-halign': 'center',
-                                'font-size': '12px',
-                                'color': '#ffffff',
-                                'text-outline-width': 2,
-                                'text-outline-color': 'data(color)',
+                                'font-size': '9px',
+                                'color': '#003366',
+                                'text-outline-width': 1,
+                                'text-outline-color': '#FFFFFF',
+                                'text-outline-opacity': 0.8,
+                                'text-wrap': 'wrap',
+                                'text-max-width': '60px',
                                 'width': (ele) => {
                                     const type = (ele.data('type') || '').toLowerCase();
                                     return type === 'customer' ? 80 :
@@ -1554,7 +1552,8 @@
                                 },
                                 'border-width': (ele) => (ele.data('type') || '').toLowerCase() === 'customer' ? 3 : 0,
                                 'border-color': '#D4AF37',
-                                'overlay-padding': '6px'
+                                'overlay-padding': 0,
+                                'overlay-opacity': 0
                             }
                         },
                         {
@@ -1566,12 +1565,10 @@
                                 'target-arrow-shape': 'triangle',
                                 'curve-style': 'bezier',
                                 'label': 'data(label)',
-                                'font-size': '10px',
+                                'font-size': '9px',
                                 'text-rotation': 'autorotate',
-                                'text-background-color': '#FFFFFF',
-                                'text-background-opacity': 0.8,
-                                'text-background-padding': '2px',
-                                'color': '#64748B'
+                                'text-background-opacity': 0,
+                                'color': '#94A3B8'
                             }
                         },
                         {
@@ -1778,7 +1775,8 @@
                                 'counterparty': '#D4AF37',  // Rich Gold
                                 'watchlist': '#730D21',      // Dark Red
                                 'transaction': '#64748B',    // Grey
-                                'entity': '#D4AF37',         // Rich Gold (fallback for demo data)
+                                'entity': '#D4AF37',         // Rich Gold
+                                'unknown': '#64748B',        // Grey fallback
                             };
                             const transformedNodes = data.nodes.map((node, index) => {
                                 const angle = (2 * Math.PI * index) / data.nodes.length;
@@ -1854,8 +1852,8 @@
                         flexDirection: 'column',
                         justifyContent: 'center'
                     }}>
-                        <h4 style={{ margin: '0 0 1rem 0', color: colors.text.primary }}>Network Graph</h4>
-                        <p style={{ color: colors.text.secondary }}>Connecting to Databricks...</p>
+                        <h4 style={{ margin: '0 0 1rem 0', color: colors.text.primary }}>Entity Relationship Diagram</h4>
+                        <p style={{ color: colors.text.secondary }}>Loading graph data...</p>
                         <div style={{ marginTop: '1rem' }}>
                             <span style={{
                                 display: 'inline-block',
@@ -1886,41 +1884,8 @@
                         marginBottom: '1rem'
                     }}>
                         <h4 style={{ margin: 0, color: colors.text.primary }}>
-                            Network Graph
-                            {error && (
-                                <span style={{
-                                    fontSize: '0.7rem',
-                                    color: colors.accent.amber,
-                                    marginLeft: '1rem',
-                                    fontWeight: '400'
-                                }}>
-                                    (Demo Mode)
-                                </span>
-                            )}
+                            Entity Relationship Diagram
                         </h4>
-                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                            <button
-                                onClick={testGraphConnection}
-                                style={{
-                                    background: colors.accent.blue,
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '600'
-                                }}
-                            >
-                                Test Graph Connection
-                            </button>
-                            <div style={{ fontSize: '0.75rem', color: colors.text.secondary }}>
-                                Status: {graphStatus}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: colors.text.secondary }}>
-                                Instance: 398dd975
-                            </div>
-                        </div>
                     </div>
 
                     {/* Graph Container with Controls */}
@@ -6160,7 +6125,6 @@
                 alert('Alert dismissed successfully!');
                 handleBackToDashboard();
             };
-
             const renderContent = () => {
                 // Show home page if no tab selected
                 if (currentView === 'home' || !activeTab) {
