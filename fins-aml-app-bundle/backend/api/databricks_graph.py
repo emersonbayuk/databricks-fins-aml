@@ -49,21 +49,21 @@ def format_node_for_cytoscape(node: Dict[str, Any]) -> Dict[str, Any]:
     else:
         risk_score = 0
 
-    # Determine color based on node type and risk score
+    # Determine color based on node type (aligned with app palette)
     if node_type == 'customer':
-        color = '#3b82f6' if risk_score < 50 else '#ef4444'
+        color = '#1D4ED8'       # Primary Blue — always blue regardless of risk
     elif node_type == 'account':
-        color = '#10b981'
+        color = '#7FB3D5'       # Sky Blue
     elif node_type == 'counterparty':
-        color = '#f59e0b' if risk_score < 70 else '#dc2626'
+        color = '#D4AF37'       # Rich Gold
     elif node_type == 'watchlist':
-        color = '#dc2626'
+        color = '#730D21'       # Dark Red
     elif node_type == 'alert':
-        color = '#f43f5e'
+        color = '#BD2B26'       # Red
     elif node_type == 'transaction':
-        color = '#6b7280'
+        color = '#64748B'       # Grey
     else:
-        color = '#6b7280'
+        color = '#64748B'
 
     return {
         "id": f"{node_type}_{node.get('node_id', '')}",
