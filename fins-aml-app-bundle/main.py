@@ -34,6 +34,13 @@ except Exception as e:
     logger.error(f"❌ Failed to load Databricks graph router: {e}")
     databricks_graph_router = None
 
+logger.info("Loading semantic graph router...")
+try:
+    from backend.api.semantic_graph import router as semantic_graph_router
+    logger.info("✅ Semantic graph router loaded successfully")
+except Exception as e:
+    logger.error(f"❌ Failed to load semantic graph router: {e}")
+    semantic_graph_router = None
 
 # Import database service
 from backend.services.database import DatabaseService
@@ -84,6 +91,13 @@ if databricks_graph_router:
     logger.info("✅ Databricks graph router registered with app")
 else:
     logger.error("❌ Databricks graph router not registered (failed to import)")
+
+# Include semantic graph search router if it loaded successfully
+if semantic_graph_router:
+    app.include_router(semantic_graph_router, prefix="/api/semantic-graph", tags=["semantic-graph"])
+    logger.info("✅ Semantic graph router registered with app")
+else:
+    logger.error("❌ Semantic graph router not registered (failed to import)")
 
 # Debug routes for development
 from backend.api import debug as debug_router

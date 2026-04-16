@@ -103,7 +103,7 @@ resources:
               catalog: ${var.catalog}
               schema: ${var.schema}
           environment_key: serverless_environment
-          timeout_seconds: 7200
+          timeout_seconds: 10800
 
       # Define serverless environment
       environments:
@@ -122,5 +122,5 @@ resources:
       display_name: "AML Executive Dashboard"
       # Uses the processed dashboard file with user-specified catalog/schema
       file_path: ./SherlockAML_ExecDash_Processed.lvdash.json
-      embed_credentials: false
+      embed_credentials: true
       warehouse_id: ${var.warehouse_id}
