@@ -20,6 +20,12 @@ variables:
   notification_email:
     description: "Email for job failure notifications"
     default: ""
+  youcom_secret_scope:
+    description: "Databricks secret scope holding the You.com MCP bearer token. Leave empty to skip MCP setup."
+    default: ""
+  youcom_secret_key:
+    description: "Databricks secret key for the You.com MCP bearer token. Leave empty to skip MCP setup."
+    default: ""
 
 targets:
   dev:
@@ -105,11 +111,34 @@ resources:
           environment_key: serverless_environment
           timeout_seconds: 10800
 
+        - task_key: provision_agents
+          depends_on:
+            - task_key: knowledge_base
+          spark_python_task:
+            python_file: ./provision_agents.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog}"
+              - "--schema"
+              - "${var.schema}"
+              - "--warehouse-id"
+              - "${var.warehouse_id}"
+              - "--mcp-secret-scope"
+              - "${var.youcom_secret_scope}"
+              - "--mcp-secret-key"
+              - "${var.youcom_secret_key}"
+              - "--apply"
+          environment_key: serverless_environment
+          # KA indexing can take 10-20 min per KA; allow 1hr total
+          timeout_seconds: 3600
+
       # Define serverless environment
       environments:
         - environment_key: serverless_environment
           spec:
             client: "1"
+            dependencies:
+              - databricks-sdk>=0.20.0
 
       schedule:
         # Run monthly on the 1st at 2 AM Pacific Time

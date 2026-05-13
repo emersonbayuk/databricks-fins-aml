@@ -301,8 +301,9 @@ def main() -> None:
     parser.add_argument("--catalog", required=True, help="Target catalog (e.g. fins_aml)")
     parser.add_argument("--schema", required=True, help="Target schema (e.g. data_generation)")
     parser.add_argument("--warehouse-id", required=True, help="Warehouse for Genie spaces")
-    parser.add_argument("--mcp-secret-scope", required=True, help="Secret scope for You.com bearer token")
-    parser.add_argument("--mcp-secret-key", required=True, help="Secret key for You.com bearer token")
+    parser.add_argument("--mcp-secret-scope", help="Secret scope for You.com bearer token (omit + --skip-mcp to skip)")
+    parser.add_argument("--mcp-secret-key", help="Secret key for You.com bearer token (omit + --skip-mcp to skip)")
+    parser.add_argument("--skip-mcp", action="store_true", help="Skip You.com MCP setup; MAS will be created without it")
     parser.add_argument("--apply", action="store_true", help="Actually create resources (default: dry-run)")
     args = parser.parse_args()
 
@@ -311,22 +312,31 @@ def main() -> None:
     if not args.apply:
         log("=== DRY RUN === (pass --apply to actually create resources)\n")
 
+    # Auto-skip MCP if secret args are empty (lets bundle pass empty strings)
+    if not (args.mcp_secret_scope and args.mcp_secret_key):
+        args.skip_mcp = True
+
     bearer_token = ""
-    if args.apply:
+    if args.apply and not args.skip_mcp:
         log("Reading You.com bearer token from secret…")
         import base64
         raw = w.secrets.get_secret(scope=args.mcp_secret_scope, key=args.mcp_secret_key).value
         bearer_token = base64.b64decode(raw).decode()
         log(f"  got token ({len(bearer_token)} chars)\n")
+    elif args.skip_mcp:
+        log("(--skip-mcp: skipping You.com MCP setup; MAS will exclude it)\n")
     else:
         log(f"(skipping secret read in dry-run; would read {args.mcp_secret_scope}/{args.mcp_secret_key})\n")
 
     sub_agent_ids: dict[str, str] = {}
 
     log("Step 1: MCP connections")
-    for mcp_spec in load_jsons("mcp"):
-        conn_name = ensure_mcp_connection(w, mcp_spec, bearer_token, args.apply)
-        sub_agent_ids[f"mcp:{mcp_spec['name']}"] = conn_name
+    if args.skip_mcp:
+        log("  [skip] --skip-mcp set")
+    else:
+        for mcp_spec in load_jsons("mcp"):
+            conn_name = ensure_mcp_connection(w, mcp_spec, bearer_token, args.apply)
+            sub_agent_ids[f"mcp:{mcp_spec['name']}"] = conn_name
 
     log("\nStep 2: Knowledge Assistants (may take minutes per KA to index)")
     for ka_spec in load_jsons("kas"):
@@ -343,6 +353,12 @@ def main() -> None:
 
     log("\nStep 4: Multi-Agent Supervisor")
     mas_spec = json.loads((AGENTS_DIR / "mas.json").read_text())
+    if args.skip_mcp:
+        # Drop external-mcp-server agents from the MAS spec when MCP is skipped
+        mas_spec["multi_agent_supervisor"]["agents"] = [
+            a for a in mas_spec["multi_agent_supervisor"]["agents"]
+            if a.get("agent_type") != "external-mcp-server"
+        ]
     ensure_mas(w, mas_spec, sub_agent_ids, args.apply)
 
     log("\nDone.")
