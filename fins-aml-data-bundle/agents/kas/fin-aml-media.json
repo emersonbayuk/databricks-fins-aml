@@ -1,21 +1,17 @@
 {
+  "_source_endpoint": "ka-e2ca2453-endpoint",
+  "_source_tile_id": "e2ca2453-b95b-4e53-984c-47a9674e8ea6",
   "description": "Answer questions about the contents of the adverse media reported",
-  "name": "FIN-AML-media",
-  "serving_endpoint_name": "ka-e2ca2453-endpoint",
-  "tile": {
-    "acl_enabled": true,
-    "creation_timestamp_ms": 1776222211923,
-    "creator": "mimi.park@databricks.com",
-    "creator_display_name": "Mimi Park",
-    "description": "Answer questions about the contents of the adverse media reported",
-    "evaluation_run_exists": false,
-    "instructions": "",
-    "last_updated_timestamp_ms": 1776222226457,
-    "mlflow_experiment_id": "785619930347753",
-    "name": "FIN-AML-media",
-    "serving_endpoint_name": "ka-e2ca2453-endpoint",
-    "tile_id": "e2ca2453-b95b-4e53-984c-47a9674e8ea6",
-    "tile_type": "KA"
-  },
-  "tile_id": "e2ca2453-b95b-4e53-984c-47a9674e8ea6"
+  "instructions": "",
+  "knowledge_sources": [
+    {
+      "description": "contains files from third party sources that provide media reportings about certain customers/persons of interest",
+      "files": {
+        "path": "/Volumes/fins_aml/data_generation/knowledge_base/adverse_media/"
+      },
+      "name": "adverse_media",
+      "type": "files"
+    }
+  ],
+  "name": "FIN-AML-media"
 }

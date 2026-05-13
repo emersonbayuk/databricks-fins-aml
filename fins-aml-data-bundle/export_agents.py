@@ -67,13 +67,27 @@ def export_kas(w: WorkspaceClient, agents: list[dict[str, Any]]) -> None:
         endpoint_name = agent["serving_endpoint"]["name"]
         endpoint = api_get(w, f"/api/2.0/serving-endpoints/{endpoint_name}")
         tile_id = endpoint["tile_endpoint_metadata"]["tile_id"]
-        tile = api_get(w, f"/api/2.0/tiles/{tile_id}")
+        ka_full = api_get(w, f"/api/2.0/knowledge-assistants/{tile_id}")["knowledge_assistant"]
+
+        # Strip workspace-specific source info; keep only what's needed
+        # to reconstruct the KA in a target workspace.
+        sources = []
+        for src in ka_full.get("knowledge_sources", []):
+            files_source = src.get("files_source") or {}
+            sources.append({
+                "name": files_source.get("name"),
+                "description": files_source.get("description"),
+                "type": files_source.get("type"),
+                "files": files_source.get("files"),  # {"path": "/Volumes/.../..."}
+            })
+
         payload = {
             "name": agent["name"],
             "description": agent["description"],
-            "tile_id": tile_id,
-            "serving_endpoint_name": endpoint_name,
-            "tile": tile,
+            "instructions": ka_full.get("instructions", ""),
+            "knowledge_sources": sources,
+            "_source_endpoint": endpoint_name,
+            "_source_tile_id": tile_id,
         }
         write_json(AGENTS_DIR / "kas" / f"{slugify(agent['name'])}.json", payload)
 
