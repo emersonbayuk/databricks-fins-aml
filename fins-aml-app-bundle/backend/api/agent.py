@@ -8,6 +8,7 @@ import re
 import requests
 import json
 import asyncio
+import httpx
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any, AsyncGenerator
@@ -24,6 +25,46 @@ MAS_ENDPOINT_URL = config.MAS_ENDPOINT_URL
 # Chunk size for simulated streaming (in characters)
 STREAM_CHUNK_SIZE = 80
 STREAM_CHUNK_DELAY = 0.03  # seconds between chunks
+
+# ---------------------------------------------------------------------------
+# Real-time streaming constants
+# ---------------------------------------------------------------------------
+STREAM_TIMEOUT = 180.0  # seconds for the full streaming connection
+
+# Friendly display names for MAS sub-agents / tools
+AGENT_DISPLAY_NAMES = {
+    "FIN-AML-case-details": "Case Details Search",
+    "FIN-AML-policies": "Policies & Regulations Search",
+    "FIN-AML-media": "Adverse Media Search",
+    "agent-aml-case360-executive-view": "Case360 — querying cases database",
+    "agent-aml-alert360-executive-view": "Alert360 — querying alerts database",
+    "you-search": "You.com — searching the web",
+    "you-contents": "You.com — extracting page content",
+    "you-research": "You.com — deep research",
+    "FIN-AML-mas": "Synthesizing results",
+}
+
+_NAME_TAG_RE = re.compile(r"<name>(.*?)</name>")
+
+
+def _friendly_agent_name(raw_name: str) -> str:
+    """Resolve a raw MAS agent/tool name to a user-friendly display name."""
+    return AGENT_DISPLAY_NAMES.get(raw_name, raw_name.replace("-", " ").title())
+
+
+def _extract_text_from_item(item: dict) -> str:
+    """Pull concatenated text from a MAS output item's content array."""
+    content = item.get("content", [])
+    if isinstance(content, list):
+        return " ".join(
+            c.get("text", "") for c in content if isinstance(c, dict)
+        )
+    return str(content)
+
+
+def _sse_event(data: dict) -> str:
+    """Format a dict as an SSE data line."""
+    return f"data: {json.dumps(data)}\n\n"
 
 
 def _extract_final_answer(result: dict) -> str:
@@ -233,50 +274,212 @@ class AgentService:
             logger.error(f"❌ Error type: {type(e).__name__}")
             raise HTTPException(status_code=500, detail=f"Internal agent service error: {str(e)[:100]}")
 
+    async def _stream_endpoint(self, payload: dict) -> AsyncGenerator[str, None]:
+        """Open a real SSE connection to the MAS endpoint with stream=true.
+
+        Yields frontend-compatible SSE ``data:`` lines by mapping MAS events:
+          response.output_text.delta        -> {"content": delta}
+          response.output_item.done (func)  -> {"activity": {...}}
+          response.output_item.done (<name>)-> {"activity": {...}}
+          response.output_item.done (other) -> skipped (raw sub-agent data)
+          mcp_approval_request              -> auto-approve and continue
+          [DONE]                            -> {"done": true}
+        """
+        stream_payload = {**payload, "stream": True}
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
+        timeout = httpx.Timeout(STREAM_TIMEOUT, connect=15.0)
+
+        # State tracked across the stream (and potential approval continuation)
+        current_step = 0
+        has_content = False
+        active_agent = "MAS Supervisor"
+        last_tool_agents = []
+
+        # Conversation history accumulated for MCP approval follow-ups
+        history_items = list(stream_payload.get("input", []))
+        pending_approval = None  # set when mcp_approval_request is received
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+
+                # --- Inner helper: stream one request and process events ---
+                async def _process_stream(req_payload):
+                    nonlocal current_step, has_content, active_agent
+                    nonlocal last_tool_agents, history_items, pending_approval
+
+                    async with client.stream(
+                        "POST", self.endpoint_url,
+                        json=req_payload, headers=headers,
+                    ) as response:
+                        if response.status_code != 200:
+                            body = await response.aread()
+                            logger.error(f"❌ MAS stream error: {response.status_code} - {body[:500]}")
+                            yield _sse_event({"error": f"Agent service error (HTTP {response.status_code})"})
+                            return
+
+                        logger.info("✅ MAS SSE stream connected")
+                        assistant_text_parts = []  # accumulate assistant text for history
+
+                        async for line in response.aiter_lines():
+                            if not line or not line.startswith("data: "):
+                                continue
+
+                            raw = line[6:]
+
+                            if raw.strip() == "[DONE]":
+                                # If an MCP approval is pending, don't yield done —
+                                # the caller will send the approval and continue.
+                                if pending_approval:
+                                    # Save accumulated assistant text to history
+                                    if assistant_text_parts:
+                                        history_items.append({
+                                            "type": "message", "role": "assistant",
+                                            "content": [{"type": "output_text", "text": "".join(assistant_text_parts)}],
+                                        })
+                                        assistant_text_parts.clear()
+                                    return
+                                yield _sse_event({"done": True})
+                                return
+
+                            try:
+                                event = json.loads(raw)
+                            except json.JSONDecodeError:
+                                logger.warning(f"⚠️ Skipping malformed SSE line: {raw[:120]}")
+                                continue
+
+                            event_type = event.get("type", "")
+
+                            # --- Text delta ---
+                            if event_type == "response.output_text.delta":
+                                step = event.get("step", current_step)
+                                delta = event.get("delta", "")
+                                if delta:
+                                    if step > current_step and has_content:
+                                        if last_tool_agents:
+                                            sources = ", ".join(last_tool_agents)
+                                            header = f"\n\n---\n\n**Source: {sources}**\n\n"
+                                        else:
+                                            header = f"\n\n---\n\n**{active_agent}**\n\n"
+                                        yield _sse_event({"content": header})
+                                        last_tool_agents = []
+                                    current_step = max(current_step, step)
+                                    has_content = True
+                                    assistant_text_parts.append(delta)
+                                    yield _sse_event({"content": delta})
+
+                            # --- Item completed ---
+                            elif event_type == "response.output_item.done":
+                                item = event.get("item", {})
+                                item_type = item.get("type", "")
+
+                                if item_type == "function_call":
+                                    tool_name = item.get("name", "unknown")
+                                    friendly = _friendly_agent_name(tool_name)
+                                    last_tool_agents.append(friendly)
+                                    logger.info(f"🔧 Tool call: {tool_name} -> {friendly}")
+                                    yield _sse_event({
+                                        "activity": {
+                                            "agent": friendly,
+                                            "action": f"Retrieving data from {friendly}",
+                                            "tool": tool_name,
+                                            "status": "running",
+                                        }
+                                    })
+
+                                elif item_type == "mcp_approval_request":
+                                    # MCP tool needs approval — store it and
+                                    # show activity; auto-approve after [DONE]
+                                    tool_name = item.get("name", "unknown")
+                                    friendly = _friendly_agent_name(tool_name)
+                                    last_tool_agents.append(friendly)
+                                    pending_approval = item
+                                    logger.info(f"🔐 MCP approval request: {tool_name} — auto-approving")
+                                    yield _sse_event({
+                                        "activity": {
+                                            "agent": friendly,
+                                            "action": f"Searching via {friendly}",
+                                            "tool": tool_name,
+                                            "status": "running",
+                                        }
+                                    })
+
+                                elif item_type == "message":
+                                    text = _extract_text_from_item(item)
+                                    name_match = _NAME_TAG_RE.search(text)
+                                    if name_match:
+                                        agent_name = name_match.group(1)
+                                        friendly = _friendly_agent_name(agent_name)
+                                        active_agent = friendly
+                                        logger.info(f"🔀 Agent handoff: {agent_name} -> {friendly}")
+                                        yield _sse_event({
+                                            "activity": {
+                                                "agent": friendly,
+                                                "action": AGENT_DISPLAY_NAMES.get(agent_name, "Processing"),
+                                                "status": "active",
+                                            }
+                                        })
+
+                        # Stream ended without [DONE]
+                        if not pending_approval:
+                            yield _sse_event({"done": True})
+
+                # ---- Main flow: first stream ----
+                async for event_line in _process_stream(stream_payload):
+                    yield event_line
+
+                # ---- MCP approval continuation (if needed) ----
+                if pending_approval:
+                    approval_id = pending_approval.get("id", "")
+                    logger.info(f"🔐 Sending auto-approval for {approval_id}")
+
+                    # Build the continuation payload with full history
+                    history_items.append({
+                        "type": "mcp_approval_request",
+                        "id": approval_id,
+                        "arguments": pending_approval.get("arguments", "{}"),
+                        "name": pending_approval.get("name", ""),
+                        "server_label": pending_approval.get("server_label", ""),
+                    })
+                    history_items.append({
+                        "type": "mcp_approval_response",
+                        "approval_request_id": approval_id,
+                        "approve": True,
+                        "id": f"auto_approve_{approval_id}",
+                    })
+
+                    continuation_payload = {
+                        **stream_payload,
+                        "input": history_items,
+                    }
+                    pending_approval = None  # reset for the continuation
+
+                    async for event_line in _process_stream(continuation_payload):
+                        yield event_line
+
+        except httpx.ReadTimeout:
+            logger.error("❌ MAS stream read timeout")
+            yield _sse_event({"error": "Response timeout -- the agent took too long. Please try again."})
+        except httpx.ConnectError as e:
+            logger.error(f"❌ MAS stream connect error: {e}")
+            yield _sse_event({"error": "Unable to connect to agent service."})
+        except Exception as e:
+            logger.error(f"❌ Unexpected streaming error: {type(e).__name__}: {e}")
+            yield _sse_event({"error": f"Streaming error: {str(e)[:100]}"})
+
     async def stream_message(self, message: str, context: Dict[str, Any],
                              chat_history: List[ChatMessageModel] = None) -> AsyncGenerator[str, None]:
-        """Stream the response in small chunks for a typewriter effect."""
+        """Stream real-time SSE events from the MAS endpoint."""
         try:
-            logger.info(f"🔄 Starting stream for message: {message[:100]}...")
-
-            # Get the full response first
-            result = await self.send_message(message, context, chat_history)
-            response_content = result.get("response", "")
-
-            if not response_content:
-                logger.warning("⚠️ No response content to stream")
-                yield f"data: {json.dumps({'done': True})}\n\n"
-                return
-
-            logger.info(f"🔄 Streaming {len(response_content)} characters in chunks")
-
-            # Stream in word-aware chunks for natural reading
-            pos = 0
-            total = len(response_content)
-            while pos < total:
-                # Find a good break point (end of word or line)
-                end = min(pos + STREAM_CHUNK_SIZE, total)
-                if end < total:
-                    # Try to break at a word boundary
-                    space_idx = response_content.rfind(" ", pos, end + 20)
-                    newline_idx = response_content.rfind("\n", pos, end + 10)
-                    break_at = max(space_idx, newline_idx)
-                    if break_at > pos:
-                        end = break_at + 1
-
-                chunk = response_content[pos:end]
-                yield f"data: {json.dumps({'content': chunk})}\n\n"
-                pos = end
-                await asyncio.sleep(STREAM_CHUNK_DELAY)
-
-            yield f"data: {json.dumps({'done': True})}\n\n"
-
-        except HTTPException as e:
-            logger.error(f"❌ HTTP error in stream_message: {e.detail}")
-            yield f"data: {json.dumps({'error': e.detail})}\n\n"
+            logger.info(f"🔄 Starting real-time stream for: {message[:100]}...")
+            payload = self._build_payload(message, context, chat_history)
+            async for event_line in self._stream_endpoint(payload):
+                yield event_line
         except Exception as e:
             logger.error(f"❌ Error in stream_message: {e}")
-            yield f"data: {json.dumps({'error': f'Failed to get response: {str(e)[:100]}'})}\n\n"
+            yield _sse_event({"error": f"Failed to stream response: {str(e)[:100]}"})
 
 @router.post("/chat", response_model=ChatResponseModel)
 async def agent_chat(
@@ -339,6 +542,41 @@ async def agent_chat_stream(
     except Exception as e:
         logger.error(f"Error in streaming endpoint: {e}")
         raise HTTPException(status_code=500, detail="Failed to process streaming chat")
+
+@router.post("/warmup")
+async def agent_warmup():
+    """Fire-and-forget warmup ping to the MAS endpoint.
+
+    Called automatically when a user visits the app.  The request wakes
+    the serverless serving endpoint so it is ready by the time the user
+    starts chatting.  Returns immediately — the actual HTTP call to
+    MAS runs in the background.
+    """
+    async def _ping():
+        try:
+            token = config.get_oauth_token()
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "input": [{"role": "user", "content": "hello"}],
+                "stream": False,
+            }
+            timeout = httpx.Timeout(90.0, connect=15.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(
+                    MAS_ENDPOINT_URL, json=payload, headers=headers,
+                )
+                logger.info(f"🔥 MAS warmup ping: HTTP {resp.status_code}")
+        except Exception as e:
+            logger.warning(f"⚠️ MAS warmup ping failed (non-blocking): {e}")
+
+    # Launch the ping in the background — don't block the response
+    asyncio.create_task(_ping())
+    logger.info("🔥 MAS warmup triggered")
+    return {"status": "warming", "message": "MAS endpoint warmup initiated"}
+
 
 @router.get("/test")
 async def test_agent_endpoint(agent_service: AgentService = Depends(get_agent_service)):

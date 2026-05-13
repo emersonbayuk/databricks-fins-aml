@@ -237,6 +237,14 @@
             50% { transform: translateY(-10px); }
             80%, 100% { transform: translateY(0); }
         }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spinSmall {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
         /* Respect reduced motion preference (a11y) */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
@@ -2101,32 +2109,66 @@
                 }
             };
 
-            // Streaming activity indicator component
+            // Streaming activity indicator component — timeline-style workflow
             const StreamingIndicator = ({ activities }) => {
                 if (!activities || activities.length === 0) return null;
 
                 return (
                     <div style={{
-                        padding: '0.75rem',
+                        padding: '0.6rem 0.75rem',
                         margin: '0.5rem 0',
-                        background: colors.bg.primary,
+                        background: `linear-gradient(135deg, ${colors.bg.primary}, ${colors.bg.tertiary || '#F8FAFC'})`,
                         border: `1px solid ${colors.border.subtle}`,
+                        borderLeft: `3px solid ${colors.accent.blue}`,
                         borderRadius: '6px',
                         fontSize: '0.75rem',
-                        color: colors.text.secondary
                     }}>
-                        <div style={{ fontWeight: '600', marginBottom: '0.25rem', color: colors.accent.blue }}>Agent Activity</div>
-                        {activities.map((activity, i) => (
-                            <div key={i} style={{ marginBottom: '0.25rem' }}>
-                                • {activity.agent || 'Agent'}: {activity.action || activity.tool || activity.message || 'Processing...'}
-                            </div>
-                        ))}
+                        <div style={{ fontWeight: 600, marginBottom: '0.4rem', color: colors.accent.blue, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Agent Workflow
+                        </div>
+                        {activities.map((activity, i) => {
+                            const isActive = i === activities.length - 1;
+                            return (
+                                <div key={i} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.25rem 0',
+                                    color: isActive ? colors.text.primary : (colors.text.muted || colors.text.secondary),
+                                    animation: isActive ? 'fadeSlideIn 0.3s ease' : 'none',
+                                    transition: 'color 0.3s ease, opacity 0.3s ease',
+                                    opacity: isActive ? 1 : 0.7,
+                                }}>
+                                    {isActive ? (
+                                        <span style={{
+                                            display: 'inline-block',
+                                            width: '12px', height: '12px',
+                                            border: `2px solid ${colors.accent.blue}40`,
+                                            borderTop: `2px solid ${colors.accent.blue}`,
+                                            borderRadius: '50%',
+                                            animation: 'spinSmall 0.8s linear infinite',
+                                            flexShrink: 0,
+                                        }}></span>
+                                    ) : (
+                                        <span style={{ color: colors.accent.emerald || '#10B981', fontSize: '0.8rem', flexShrink: 0, width: '12px', textAlign: 'center' }}>&#10003;</span>
+                                    )}
+                                    <span style={{ fontWeight: isActive ? 600 : 400 }}>
+                                        {activity.agent || 'Agent'}
+                                    </span>
+                                    {activity.action && activity.action !== activity.agent && (
+                                        <span style={{ color: colors.text.secondary, fontStyle: isActive ? 'normal' : 'italic' }}>
+                                            — {activity.action}
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 );
             };
 
-            // Typing indicator for streaming
-            const TypingIndicator = () => (
+            // Typing indicator for streaming — shows current agent if available
+            const TypingIndicator = ({ currentAgent }) => (
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -2142,7 +2184,7 @@
                         marginRight: '0.5rem',
                         animation: 'pulse 1.5s infinite'
                     }}></div>
-                    AI Assistant is analyzing...
+                    {currentAgent ? `${currentAgent} is working...` : 'AI Assistant is analyzing...'}
                 </div>
             );
 
@@ -2236,7 +2278,7 @@
                                         ></div>
 
                                         {/* Show typing indicator for empty streaming messages */}
-                                        {message.isStreaming && !message.content && <TypingIndicator />}
+                                        {message.isStreaming && !message.content && <TypingIndicator currentAgent={message.metadata?.activities?.length > 0 ? message.metadata.activities[message.metadata.activities.length - 1].agent : null} />}
 
                                     </div>
                                 ))}
@@ -3240,12 +3282,23 @@
                             setStreamingMessage('');
                             setAgentActivity([]);
 
-                            // Update with error message
+                            // Distinguish timeout errors from other failures
+                            const errMsg = error?.message || '';
+                            const isTimeout = errMsg.toLowerCase().includes('timeout') || errMsg.toLowerCase().includes('timed out');
+                            const errorContent = isTimeout
+                                ? '**The AI assistant is still warming up.** The agent endpoint needed extra time to start. Please wait a moment and try your question again — subsequent requests will be much faster.'
+                                : 'I apologize, but I encountered an error while analyzing this alert. Please try asking another question or try again shortly.';
+
+                            // Re-trigger warmup in case of timeout so next request is faster
+                            if (isTimeout) {
+                                fetch('/api/agent/warmup', { method: 'POST' }).catch(() => {});
+                            }
+
                             setChatMessages(prev => prev.map(msg =>
                                 msg.id === streamingId
                                     ? {
                                         ...msg,
-                                        content: 'I apologize, but I encountered an error while analyzing this alert. The system automatically fell back to provide this response. Please try asking another question or contact support if issues persist.',
+                                        content: errorContent,
                                         isStreaming: false,
                                         hasError: true
                                     }
@@ -3265,7 +3318,7 @@
                         msg.id === streamingId
                             ? {
                                 ...msg,
-                                content: 'I apologize, but I encountered an error connecting to the AI agent. Please try again or contact support if the issue persists.',
+                                content: '**Unable to connect to the AI assistant.** The agent may be starting up. Please wait a moment and try again — the system is warming up in the background.',
                                 isStreaming: false,
                                 hasError: true
                             }
@@ -6056,6 +6109,15 @@
                     }
                 };
                 loadAnalysts();
+            }, []);
+
+            // Warm up the MAS agent endpoint on app load so it's ready
+            // by the time the user navigates to an investigation chat
+            useEffect(() => {
+                fetch('/api/agent/warmup', { method: 'POST' })
+                    .then(r => r.json())
+                    .then(d => console.log('MAS warmup:', d.status))
+                    .catch(() => {}); // silently ignore warmup failures
             }, []);
 
             // Load executive dashboard on mount
