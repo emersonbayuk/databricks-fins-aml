@@ -1,0 +1,21 @@
+{
+  "description": "Answer questions about regulations and policies from regulators",
+  "name": "FIN-AML-policies",
+  "serving_endpoint_name": "ka-53fbbb04-endpoint",
+  "tile": {
+    "acl_enabled": true,
+    "creation_timestamp_ms": 1776222137633,
+    "creator": "mimi.park@databricks.com",
+    "creator_display_name": "Mimi Park",
+    "description": "Answer questions about regulations and policies from regulators",
+    "evaluation_run_exists": false,
+    "instructions": "",
+    "last_updated_timestamp_ms": 1776222169807,
+    "mlflow_experiment_id": "785619930347752",
+    "name": "FIN-AML-policies",
+    "serving_endpoint_name": "ka-53fbbb04-endpoint",
+    "tile_id": "53fbbb04-061d-41e7-a29c-e55cfaa18c50",
+    "tile_type": "KA"
+  },
+  "tile_id": "53fbbb04-061d-41e7-a29c-e55cfaa18c50"
+}
