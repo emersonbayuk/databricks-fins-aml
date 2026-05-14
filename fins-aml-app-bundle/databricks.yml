@@ -66,6 +66,7 @@ targets:
       workspace_id: "7474649573853836"
       warehouse_id: "d5080ca821238922"
       dashboard_id: "01f127b9372c1c4f850385353803dd0f"
+      mas_endpoint_url: "https://fevm-fins-demo.cloud.databricks.com/serving-endpoints/mas-c499756e-endpoint/invocations"
       # Lakebase: provisioned 2026-05-12, snapshot of graph_nodes/graph_edges
       lakebase_host: "ep-steep-block-d2vri3pw.database.us-east-1.cloud.databricks.com"
       lakebase_database: "fins_aml_graph"
