@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, Dict, List, Any
 
 from backend.services.database import DatabaseService
+from backend.services import lakebase as lakebase_service
 from backend import config
 
 router = APIRouter()
@@ -181,7 +182,7 @@ async def semantic_graph_search(
             WHERE LOWER(node_label) LIKE LOWER('%{entity_name}%')
             LIMIT 1
             """
-            customer_result = await db_service.execute_query(customer_query)
+            customer_result = await lakebase_service.route_query(db_service,customer_query)
             if not customer_result:
                 return {"nodes": [], "relationships": [], "matches": [], "summary": f"No entity found matching '{entity_name}'.", "query": q}
 
@@ -207,7 +208,7 @@ async def semantic_graph_search(
             )
             SELECT * FROM ranked WHERE rn = 1 ORDER BY weight DESC LIMIT 200
             """
-            edges_result = await db_service.execute_query(edges_query)
+            edges_result = await lakebase_service.route_query(db_service,edges_query)
 
             all_node_ids = {(target_type, str(target_id))}
             for edge in edges_result:
@@ -215,7 +216,7 @@ async def semantic_graph_search(
                 all_node_ids.add((edge["target_node_type"], str(edge["target_node_id"])))
 
             node_conditions = " OR ".join([f"(node_type = '{nt}' AND node_id = '{ni}')" for nt, ni in all_node_ids])
-            nodes_result = await db_service.execute_query(f"""
+            nodes_result = await lakebase_service.route_query(db_service,f"""
                 SELECT DISTINCT node_id, node_type, node_label, risk_score, risk_category, properties
                 FROM {config.CATALOG}.{config.SCHEMA}.graph_nodes WHERE {node_conditions}
             """)
@@ -261,7 +262,7 @@ async def semantic_graph_search(
             LIMIT 30
             """
             try:
-                resolved = await db_service.execute_query(resolve_query)
+                resolved = await lakebase_service.route_query(db_service,resolve_query)
                 if resolved:
                     # Replace matches with the resolved customers — the original
                     # non-customer matches (watchlist/alert) were intermediaries
@@ -341,7 +342,7 @@ async def semantic_graph_search(
         LIMIT 500
         """
 
-        edges_result = await db_service.execute_query(edges_query)
+        edges_result = await lakebase_service.route_query(db_service,edges_query)
 
         # Collect all node IDs from edges + matched nodes
         all_node_ids = set(matched_node_ids)
@@ -361,7 +362,7 @@ async def semantic_graph_search(
         WHERE {node_conditions}
         """
 
-        nodes_result = await db_service.execute_query(nodes_query)
+        nodes_result = await lakebase_service.route_query(db_service,nodes_query)
 
         # Format for frontend (same format as databricks_graph.py)
         node_color_map = {
@@ -452,7 +453,7 @@ async def graph_overview(
         ORDER BY risk_score DESC
         LIMIT {top_customers}
         """
-        customers = await db_service.execute_query(customers_query)
+        customers = await lakebase_service.route_query(db_service,customers_query)
 
         if not customers:
             return {"nodes": [], "relationships": [], "stats": {"total_nodes": 0, "total_edges": 0}}
@@ -479,7 +480,7 @@ async def graph_overview(
         ORDER BY weight DESC
         LIMIT 800
         """
-        edges_result = await db_service.execute_query(edges_query)
+        edges_result = await lakebase_service.route_query(db_service,edges_query)
 
         # Collect all node IDs
         all_node_ids = {("customer", cid) for cid in customer_ids}
@@ -498,7 +499,7 @@ async def graph_overview(
         FROM {config.CATALOG}.{config.SCHEMA}.graph_nodes
         WHERE {node_conditions}
         """
-        nodes_result = await db_service.execute_query(nodes_query)
+        nodes_result = await lakebase_service.route_query(db_service,nodes_query)
 
         # Format
         node_color_map = {

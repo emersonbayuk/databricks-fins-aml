@@ -153,3 +153,17 @@ async def execute_query(sql: str) -> list[dict[str, Any]]:
 def is_configured() -> bool:
     """Return True if all required Lakebase env vars are present."""
     return bool(LAKEBASE_HOST and LAKEBASE_DATABASE and LAKEBASE_ENDPOINT_PATH)
+
+
+async def route_query(db_service, sql: str) -> list[dict[str, Any]]:
+    """Dispatch a graph_nodes/graph_edges query to Lakebase or the SQL warehouse.
+
+    Argument order matches `db_service.execute_query` ergonomics: callers can
+    swap `db_service.execute_query(...)` → `lakebase_service.route_query(db_service, ...)`
+    with a single global rename. When USE_LAKEBASE is on and Lakebase is
+    configured, Postgres serves the read; otherwise the Delta-SQL path runs
+    unchanged.
+    """
+    if config.USE_LAKEBASE and is_configured():
+        return await execute_query(sql)
+    return await db_service.execute_query(sql)

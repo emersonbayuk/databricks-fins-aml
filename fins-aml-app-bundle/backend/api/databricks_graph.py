@@ -24,14 +24,8 @@ async def get_db_service() -> DatabaseService:
 
 
 async def _execute_graph_query(sql: str, db_service: DatabaseService) -> List[Dict[str, Any]]:
-    """Route graph queries to Lakebase Postgres or the SQL warehouse.
-
-    When USE_LAKEBASE is on and the Lakebase env is configured, Postgres
-    handles the read. Otherwise the Delta-SQL path runs unchanged.
-    """
-    if config.USE_LAKEBASE and lakebase_service.is_configured():
-        return await lakebase_service.execute_query(sql)
-    return await db_service.execute_query(sql)
+    """Backwards-compatible alias for the shared router in lakebase_service."""
+    return await lakebase_service.route_query(db_service, sql)
 
 def format_node_for_cytoscape(node: Dict[str, Any]) -> Dict[str, Any]:
     """Format a Databricks graph node for Cytoscape visualization"""
