@@ -893,10 +893,10 @@
         // Compliance Deadlines Component
         const ComplianceDeadlines = () => {
             const deadlines = [
-                { type: 'SAR Filing', customer: 'Thomas Hartman', dueDate: '2025-01-18', priority: 'critical', daysLeft: 1 },
-                { type: 'EDD Review', customer: 'GlobalTech Imports', dueDate: '2025-01-20', priority: 'high', daysLeft: 3 },
-                { type: 'KYC Renewal', customer: 'Meridian Holdings', dueDate: '2025-01-22', priority: 'medium', daysLeft: 5 },
-                { type: 'Case Review', customer: 'Patricia Vance', dueDate: '2025-01-25', priority: 'medium', daysLeft: 8 }
+                { type: 'SAR Filing', customer: 'Sample Customer A', dueDate: '2026-01-18', priority: 'critical', daysLeft: 1 },
+                { type: 'EDD Review', customer: 'Sample Business A', dueDate: '2026-01-20', priority: 'high', daysLeft: 3 },
+                { type: 'KYC Renewal', customer: 'Sample Business B', dueDate: '2026-01-22', priority: 'medium', daysLeft: 5 },
+                { type: 'Case Review', customer: 'Sample Customer B', dueDate: '2026-01-25', priority: 'medium', daysLeft: 8 }
             ];
 
             return (
@@ -6162,8 +6162,8 @@
                             setAnalystDashboard({
                                 stats: { total_alerts: 6, new_alerts: 2, in_progress_alerts: 3, avg_score: 82.5 },
                                 alerts: [
-                                    { alert_id: "ALT-2024-8847", customer_name: "Thomas Hartman", scenario_name: "Structuring", alert_score: 94, priority: "critical", total_amount: "$68,400", alert_status: "new", days_open: 0 },
-                                    { alert_id: "ALT-2024-8842", customer_name: "Meridian Holdings LLC", scenario_name: "Rapid Movement", alert_score: 87, priority: "high", total_amount: "$125,000", alert_status: "assigned", days_open: 1 }
+                                    { alert_id: "ALT-2026-8847", customer_name: "Sample Customer A", scenario_name: "Structuring", alert_score: 94, priority: "critical", total_amount: "$68,400", alert_status: "new", days_open: 0 },
+                                    { alert_id: "ALT-2026-8842", customer_name: "Sample Business B", scenario_name: "Rapid Movement", alert_score: 87, priority: "high", total_amount: "$125,000", alert_status: "assigned", days_open: 1 }
                                 ],
                                 analysts: analysts
                             });

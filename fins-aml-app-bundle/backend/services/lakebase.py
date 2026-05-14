@@ -5,10 +5,14 @@ so callers can switch backends via the USE_LAKEBASE flag with minimal code
 duplication.
 
 Connection model:
-  - One short-lived psycopg connection per query (graph endpoints are
+  - One short-lived asyncpg connection per query (graph endpoints are
     bursty and low-concurrency; pooling adds complexity).
   - OAuth credentials refreshed via /api/2.0/postgres/credentials when
     the cached token is within 5 minutes of expiry.
+
+Driver choice:
+  - asyncpg (Apache-2.0). Async-native — no thread bridging — and avoids
+    the LGPL license that psycopg carries.
 
 Spark SQL → Postgres compatibility:
   - Strips `<catalog>.<schema>.` table qualifiers (Postgres uses bare names).
@@ -20,16 +24,16 @@ Spark SQL → Postgres compatibility:
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
 import re
-import threading
 import time
 from datetime import datetime
 from typing import Any
 
-import psycopg
-import psycopg.rows
+import asyncpg
 import requests
 
 from backend import config
@@ -50,7 +54,7 @@ LAKEBASE_USER = os.getenv("LAKEBASE_USER", "")  # set to SP/email; falls back to
 _pg_token: str | None = None
 _pg_token_expiry: float = 0.0
 _pg_user: str | None = None
-_pg_lock = threading.Lock()
+_pg_lock = asyncio.Lock()
 
 
 def _fetch_pg_credential() -> tuple[str, float]:
@@ -84,15 +88,15 @@ def _resolve_user() -> str:
     return resp.json()["userName"]
 
 
-def _get_credentials() -> tuple[str, str]:
+async def _get_credentials() -> tuple[str, str]:
     """Return (user, token), refreshing if within 5 min of expiry."""
     global _pg_token, _pg_token_expiry, _pg_user
-    with _pg_lock:
+    async with _pg_lock:
         if _pg_user is None:
-            _pg_user = _resolve_user()
+            _pg_user = await asyncio.to_thread(_resolve_user)
         if _pg_token is None or time.time() > (_pg_token_expiry - 300):
             _logger.info("🔑 Refreshing Lakebase credential…")
-            _pg_token, _pg_token_expiry = _fetch_pg_credential()
+            _pg_token, _pg_token_expiry = await asyncio.to_thread(_fetch_pg_credential)
         return _pg_user, _pg_token
 
 
@@ -113,41 +117,39 @@ def _spark_to_postgres(sql: str) -> str:
 # ---------------------------------------------------------------------------
 # Query execution
 # ---------------------------------------------------------------------------
-def _execute_sync(sql: str) -> list[dict[str, Any]]:
+async def execute_query(sql: str) -> list[dict[str, Any]]:
+    """Run a SQL string against Lakebase and return rows as list[dict].
+
+    Properties columns (JSONB in Postgres) are re-stringified to match the
+    SQL-warehouse contract — callers downstream parse them with json.loads.
+    """
     rewritten = _spark_to_postgres(sql)
-    user, token = _get_credentials()
-    with psycopg.connect(
+    user, token = await _get_credentials()
+
+    conn = await asyncpg.connect(
         host=LAKEBASE_HOST,
         port=5432,
-        dbname=LAKEBASE_DATABASE,
+        database=LAKEBASE_DATABASE,
         user=user,
         password=token,
-        sslmode="require",
-        connect_timeout=10,
-    ) as conn:
-        with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
-            cur.execute(rewritten)
-            if cur.description is None:
-                return []
-            rows = cur.fetchall()
-            # JSONB columns come back as already-parsed dicts; the rest of
-            # the codebase expects `properties` as a JSON STRING (it parses
-            # itself in format_*_for_cytoscape). Re-stringify for parity.
-            import json as _json
-            for row in rows:
-                if "properties" in row and not isinstance(row["properties"], (str, type(None))):
-                    row["properties"] = _json.dumps(row["properties"])
-            return rows
-
-
-async def execute_query(sql: str) -> list[dict[str, Any]]:
-    """Async-compatible wrapper around the sync psycopg call.
-
-    Postgres queries against Lakebase are sub-10ms for our graph workload,
-    so running on the event loop is fine for now. Move to a thread executor
-    if we observe head-of-line blocking under load.
-    """
-    return _execute_sync(sql)
+        ssl="require",
+        timeout=10,
+    )
+    try:
+        # asyncpg returns jsonb as a parsed dict/list by default. The rest of
+        # the codebase expects `properties` as a JSON string, so register a
+        # codec that hands jsonb back as raw text.
+        await conn.set_type_codec(
+            "jsonb",
+            encoder=lambda v: v,
+            decoder=lambda v: v,
+            schema="pg_catalog",
+            format="text",
+        )
+        records = await conn.fetch(rewritten)
+        return [dict(r) for r in records]
+    finally:
+        await conn.close()
 
 
 def is_configured() -> bool:
