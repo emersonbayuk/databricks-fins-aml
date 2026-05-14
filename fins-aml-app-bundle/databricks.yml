@@ -20,6 +20,18 @@ variables:
   schema:
     description: "Schema name"
     default: "data_generation"
+  use_lakebase:
+    description: "Toggle Postgres-backed graph reads (true/false). Default false keeps SQL-warehouse path."
+    default: "false"
+  lakebase_host:
+    description: "Lakebase endpoint host (e.g. ep-xxx.database.us-east-1.cloud.databricks.com)"
+    default: ""
+  lakebase_database:
+    description: "Lakebase database name"
+    default: ""
+  lakebase_endpoint_path:
+    description: "Lakebase endpoint resource path (projects/<id>/branches/<id>/endpoints/<id>)"
+    default: ""
 
 targets:
   dev:
@@ -54,6 +66,11 @@ targets:
       workspace_id: "7474649573853836"
       warehouse_id: "d5080ca821238922"
       dashboard_id: "01f127b9372c1c4f850385353803dd0f"
+      # Lakebase: provisioned 2026-05-12, snapshot of graph_nodes/graph_edges
+      lakebase_host: "ep-steep-block-d2vri3pw.database.us-east-1.cloud.databricks.com"
+      lakebase_database: "fins_aml_graph"
+      lakebase_endpoint_path: "projects/fins-aml-graph/branches/production/endpoints/primary"
+      # use_lakebase intentionally left as default "false" — flip after smoke test
 
 resources:
   apps:

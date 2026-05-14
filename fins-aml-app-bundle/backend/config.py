@@ -28,6 +28,10 @@ DATABRICKS_CLIENT_SECRET = os.getenv("DATABRICKS_CLIENT_SECRET")
 DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN")  # optional fallback
 DATABRICKS_WAREHOUSE_ID = os.getenv("DATABRICKS_WAREHOUSE_ID", "dummy_warehouse")
 
+# Lakebase: optional Postgres-backed graph reads. When USE_LAKEBASE=true the
+# customer graph endpoint reads from Postgres instead of the SQL warehouse.
+USE_LAKEBASE = os.getenv("USE_LAKEBASE", "false").lower() == "true"
+
 # ---------------------------------------------------------------------------
 # OAuth M2M token management
 # ---------------------------------------------------------------------------

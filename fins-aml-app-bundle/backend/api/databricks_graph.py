@@ -12,6 +12,8 @@ router = APIRouter()
 
 # Import database service
 from backend.services.database import DatabaseService
+from backend import config
+from backend.services import lakebase as lakebase_service
 
 # Dependency to get database service
 async def get_db_service() -> DatabaseService:
@@ -19,6 +21,17 @@ async def get_db_service() -> DatabaseService:
     if not db_service:
         raise HTTPException(status_code=503, detail="Database service unavailable")
     return db_service
+
+
+async def _execute_graph_query(sql: str, db_service: DatabaseService) -> List[Dict[str, Any]]:
+    """Route graph queries to Lakebase Postgres or the SQL warehouse.
+
+    When USE_LAKEBASE is on and the Lakebase env is configured, Postgres
+    handles the read. Otherwise the Delta-SQL path runs unchanged.
+    """
+    if config.USE_LAKEBASE and lakebase_service.is_configured():
+        return await lakebase_service.execute_query(sql)
+    return await db_service.execute_query(sql)
 
 def format_node_for_cytoscape(node: Dict[str, Any]) -> Dict[str, Any]:
     """Format a Databricks graph node for Cytoscape visualization"""
@@ -200,7 +213,7 @@ async def get_customer_graph(
         LIMIT 1
         """
 
-        customer_result = await db_service.execute_query(customer_query)
+        customer_result = await _execute_graph_query(customer_query, db_service)
 
         if not customer_result:
             return {
@@ -235,7 +248,7 @@ async def get_customer_graph(
         LIMIT {limit}
         """
 
-        edges_result = await db_service.execute_query(edges_query)
+        edges_result = await _execute_graph_query(edges_query, db_service)
 
         # Collect all node IDs we need
         node_ids = {('customer', str(target_id))}
@@ -255,7 +268,7 @@ async def get_customer_graph(
         WHERE {nodes_conditions}
         """
 
-        nodes_result = await db_service.execute_query(nodes_query)
+        nodes_result = await _execute_graph_query(nodes_query, db_service)
 
         # Format results for Cytoscape
         nodes = [format_node_for_cytoscape(node) for node in nodes_result]
@@ -307,7 +320,7 @@ async def get_customer_graph(
                 LIMIT {limit_int - len(relationships)}
                 """
 
-                second_edges_result = await db_service.execute_query(second_edges_query)
+                second_edges_result = await _execute_graph_query(second_edges_query, db_service)
 
                 # Add new edges, deduplicating against already-fetched edges
                 seen_edges = {(r['from'], r['to'], r['type']) for r in relationships}
@@ -338,7 +351,7 @@ async def get_customer_graph(
                     WHERE {new_nodes_conditions}
                     """
 
-                    new_nodes_result = await db_service.execute_query(new_nodes_query)
+                    new_nodes_result = await _execute_graph_query(new_nodes_query, db_service)
                     for node in new_nodes_result:
                         nodes.append(format_node_for_cytoscape(node))
 

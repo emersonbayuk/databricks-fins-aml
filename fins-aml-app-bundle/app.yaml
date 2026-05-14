@@ -36,3 +36,14 @@ env:
     value: '${var.schema}'
   - name: 'MAS_ENDPOINT_URL'
     value: '${var.mas_endpoint_url}'
+
+  # Lakebase (optional Postgres-backed graph reads).
+  # Leave USE_LAKEBASE=false to keep the existing SQL-warehouse path.
+  - name: 'USE_LAKEBASE'
+    value: '${var.use_lakebase}'
+  - name: 'LAKEBASE_HOST'
+    value: '${var.lakebase_host}'
+  - name: 'LAKEBASE_DATABASE'
+    value: '${var.lakebase_database}'
+  - name: 'LAKEBASE_ENDPOINT_PATH'
+    value: '${var.lakebase_endpoint_path}'
