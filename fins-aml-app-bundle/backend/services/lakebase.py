@@ -161,9 +161,20 @@ async def route_query(db_service, sql: str) -> list[dict[str, Any]]:
     Argument order matches `db_service.execute_query` ergonomics: callers can
     swap `db_service.execute_query(...)` → `lakebase_service.route_query(db_service, ...)`
     with a single global rename. When USE_LAKEBASE is on and Lakebase is
-    configured, Postgres serves the read; otherwise the Delta-SQL path runs
-    unchanged.
+    configured, Postgres serves the read.
+
+    If Lakebase raises for any reason (cold start, auth blip, query incompat),
+    we log a warning and silently fall back to the SQL warehouse path so the
+    user sees a slightly slower load instead of the demo placeholder. The
+    warning log makes the failure visible so we can fix it before the next demo.
     """
     if config.USE_LAKEBASE and is_configured():
-        return await execute_query(sql)
+        try:
+            return await execute_query(sql)
+        except Exception as e:
+            _logger.warning(
+                "⚠️ Lakebase query failed, falling back to Delta: %s: %s",
+                type(e).__name__, e,
+            )
+            return await db_service.execute_query(sql)
     return await db_service.execute_query(sql)
