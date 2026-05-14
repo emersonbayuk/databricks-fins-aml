@@ -446,7 +446,7 @@ async def graph_overview(
                 OR (e.target_node_id = n.node_id AND e.target_node_type = 'customer')
             WHERE n.node_type = 'customer'
             GROUP BY n.node_id, n.node_type, n.node_label, n.risk_score, n.risk_category, n.properties
-            HAVING edge_count >= 15
+            HAVING COUNT(DISTINCT CONCAT(e.source_node_id, '-', e.target_node_id)) >= 15
         )
         SELECT node_id, node_type, node_label, risk_score, risk_category, properties
         FROM customer_edge_counts
