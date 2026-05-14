@@ -99,15 +99,29 @@ The repo ships as two Databricks Asset Bundles. Deploy the data bundle first (it
 
 ### Prerequisites
 
-- A Databricks workspace with Unity Catalog, Serverless compute, and Agent Bricks enabled
+**Tooling on your laptop:**
 - Databricks CLI **v0.299.1 or newer** (`brew upgrade databricks` or [install instructions](https://docs.databricks.com/en/dev-tools/cli/install.html))
-- A configured CLI profile pointing at your workspace
-- A SQL warehouse you have CAN_USE permission on
-- *(Optional)* A You.com API key, if you want web-search as a 6th sub-agent
+- A configured CLI profile pointing at your target workspace (`databricks auth login --host https://<your-workspace>.cloud.databricks.com --profile <your-profile>`)
+
+**Workspace features that must be enabled** (your workspace admin can confirm):
+- Unity Catalog (any new workspace; verify via `databricks catalogs list`)
+- Serverless compute for jobs (the data bundle uses serverless exclusively)
+- Agent Bricks — Knowledge Assistants and Multi-Agent Supervisors must be available in the workspace UI under "Agents"
+- Genie Spaces (visible under "Genie" in the left nav)
+- Vector Search (Knowledge Assistants provision their own VS endpoints automatically; you only need the feature itself enabled)
+- *(Optional, only if you set `USE_LAKEBASE=true`)* Lakebase Autoscaling — verify with `databricks postgres list-projects --profile <your-profile>` returns a result, even if empty
+
+**Workspace permissions for whoever runs the deploy:**
+- CAN_USE on a SQL warehouse
+- CAN_MANAGE on the catalog and schema you'll create
+- Permission to create Knowledge Assistants, Genie Spaces, and Multi-Agent Supervisors
+
+**Optional secret:**
+- A You.com API key from [you.com/developer](https://you.com/developer), if you want web-search as a 6th sub-agent
 
 ### 1. Configure your target
 
-Copy the `example` target in `fins-aml-app-bundle/databricks.yml` and fill in your workspace values:
+Copy the `example` target in `fins-aml-app-bundle/databricks.yml` and fill in the values you already have. **Leave `mas_endpoint_url` and `dashboard_id` as placeholders for now** — they're outputs of step 2 and you'll backfill them in step 3.
 
 ```yaml
 targets:
@@ -120,18 +134,22 @@ targets:
       databricks_hostname: "<your-workspace>.cloud.databricks.com"
       workspace_id: "<numeric-workspace-id>"
       warehouse_id: "<sql-warehouse-id>"
-      mas_endpoint_url: "https://<your-workspace>.cloud.databricks.com/serving-endpoints/<your-mas-endpoint>/invocations"
-      dashboard_id: "<lakeview-dashboard-id>"   # filled in after step 2
+      mas_endpoint_url: "PLACEHOLDER-WILL-BACKFILL-AFTER-STEP-2"
+      dashboard_id: "PLACEHOLDER-WILL-BACKFILL-AFTER-STEP-2"
 ```
 
 ### 2. Deploy and run the data bundle
+
+The data bundle creates everything the app depends on: catalog tables, the synthetic knowledge-base volume, the Lakeview dashboard, and the full agent graph (3 KAs, 2 Genie Spaces, the MAS, and optionally the You.com MCP).
 
 ```bash
 cd fins-aml-data-bundle
 
 # (Optional) Set up the You.com MCP secret first if you want web search.
+# Without this, the MAS comes up with 5 sub-agents instead of 6.
 databricks secrets create-scope youcom --profile <your-profile>
 databricks secrets put-secret youcom api_key --profile <your-profile>
+# Paste your you.com API key when prompted.
 
 # Deploy resource definitions.
 databricks bundle deploy --profile <your-profile> \
@@ -146,23 +164,49 @@ databricks bundle deploy --profile <your-profile> \
 databricks bundle run aml_data_generation_pipeline --profile <your-profile>
 ```
 
-The pipeline runs six tasks in order: `process_dashboard_template → generate_base_data → watchlist_screening → graph_model → knowledge_base → provision_agents`. Expect 30–60 minutes total; the last step (Knowledge Assistant indexing) is the longest. When it finishes you'll have:
+The pipeline runs six tasks in order: `process_dashboard_template → generate_base_data → watchlist_screening → graph_model → knowledge_base → provision_agents`. Expect **60–120 minutes total**; the Knowledge Base notebook (LLM-generated SAR narratives, EDD memos, adverse-media reports) and the final Knowledge Assistant indexing inside `provision_agents` are the two longest steps. When it finishes you'll have:
 
 - All tables under `<catalog>.<schema>.*`
 - The `knowledge_base` volume populated with synthetic PDFs, SAR narratives, EDD memos, and adverse-media reports
-- The "AML Executive Dashboard" deployed
+- The "AML Executive Dashboard" registered in the workspace
 - A working Multi-Agent Supervisor with 3 Knowledge Assistants, 2 Genie Spaces, and (if you set the You.com secret) 1 external MCP server — all ready for the app to call
 
-If you skipped the You.com secret, the MAS comes up with 5 sub-agents instead of 6. You can add it later by setting the secret and re-running the pipeline.
+If you set up the You.com MCP, the first time anyone uses one of its tools in the Databricks playground, they'll be prompted to approve it. This is a one-time per-workspace action.
 
-### 3. Deploy the app
+### 3. Backfill the MAS endpoint URL and dashboard ID
+
+Read the two values produced by step 2 and update your target in `fins-aml-app-bundle/databricks.yml`.
+
+```bash
+# The MAS endpoint name (e.g. mas-c499756e-endpoint):
+databricks api get "/api/2.0/tiles?tile_type=MAS" --profile <your-profile> \
+  | python3 -c "import json,sys; \
+    [print(t['serving_endpoint_name']) for t in json.load(sys.stdin)['tiles'] \
+     if t['name']=='FIN-AML-mas']"
+
+# The dashboard ID:
+databricks api get "/api/2.0/lakeview/dashboards" --profile <your-profile> \
+  | python3 -c "import json,sys; \
+    [print(d['dashboard_id']) for d in json.load(sys.stdin)['dashboards'] \
+     if d['display_name']=='AML Executive Dashboard']"
+```
+
+Plug those into the target:
+```yaml
+mas_endpoint_url: "https://<your-workspace>.cloud.databricks.com/serving-endpoints/<mas-endpoint-name>/invocations"
+dashboard_id: "<dashboard-id>"
+```
+
+### 4. Deploy the app
 
 ```bash
 cd ../fins-aml-app-bundle
 ./deploy.sh my-workspace <your-profile>
 ```
 
-`deploy.sh` resolves the `${var.xxx}` references in `app.yaml` for your target, uploads the resolved file to the workspace, and runs `databricks apps deploy`.
+`deploy.sh` validates the bundle, runs `databricks bundle deploy` to register the app resource and upload code, resolves the `${var.xxx}` references in `app.yaml` for your target, uploads the resolved file, and runs `databricks apps deploy`. The first deploy takes a few minutes; subsequent deploys are faster.
+
+The app URL is printed at the end of the deploy. Open it, sign in with your Databricks identity, and you should see the Executive Overview load with the data the bundle generated.
 
 ---
 
@@ -170,20 +214,95 @@ cd ../fins-aml-app-bundle
 
 For graph-heavy use cases — the customer subgraph view, the Graph Explorer — the app can read from a Lakebase Postgres instance instead of the SQL warehouse. Postgres queries land in single-digit milliseconds vs warehouse queries that often take 500ms–2s.
 
-To turn it on:
+The app's behaviour is identical either way; only the underlying read path changes. If Lakebase is ever unreachable mid-request, the app automatically falls back to the SQL warehouse and logs a warning. Flipping the flag on is reversible with a one-line change + redeploy.
 
-1. Provision a Lakebase project and copy your graph tables into it. The recommended pattern is a UC → Lakebase synced table; for one-shot copies, see `fins-aml-data-bundle/notebooks/` for the schema.
-2. Add the connection details to your target in `databricks.yml`:
-   ```yaml
-   use_lakebase: "true"
-   lakebase_host: "ep-xxx.database.<region>.cloud.databricks.com"
-   lakebase_database: "fins_aml_graph"
-   lakebase_endpoint_path: "projects/<id>/branches/production/endpoints/primary"
-   ```
-3. Grant the app's service principal `LOGIN` on the database, and `SELECT` on the graph tables.
-4. Redeploy the app.
+### Setup
 
-The graph endpoints automatically fall back to the SQL warehouse if Lakebase is unreachable for any reason, so flipping the flag on is reversible without risk.
+Run these commands once. They take ~10 minutes total (most of which is the project waiting for its endpoint to come online).
+
+```bash
+PROFILE=<your-profile>
+PROJECT=fins-aml-graph              # or your preferred name
+DATABASE=fins_aml_graph             # the database inside the project
+
+# 1. Provision the project. Auto-creates a production branch + primary endpoint.
+databricks postgres create-project $PROJECT \
+  --json '{"spec": {"display_name": "FINS AML Graph"}}' \
+  --profile $PROFILE
+
+# 2. Wait until the endpoint reports ACTIVE (usually 1-2 minutes).
+until [ "$(databricks postgres list-endpoints projects/$PROJECT/branches/production \
+    --profile $PROFILE -o json | python3 -c \
+    'import json,sys; print(json.load(sys.stdin)[0][chr(34)+chr(115)+chr(116)+chr(97)+chr(116)+chr(117)+chr(115)+chr(34)][chr(34)+chr(99)+chr(117)+chr(114)+chr(114)+chr(101)+chr(110)+chr(116)+chr(95)+chr(115)+chr(116)+chr(97)+chr(116)+chr(101)+chr(34)])')" = "ACTIVE" ]; do
+  sleep 5
+done
+
+# 3. Capture connection details.
+HOST=$(databricks postgres list-endpoints projects/$PROJECT/branches/production \
+  --profile $PROFILE -o json | python3 -c \
+  "import json,sys; print(json.load(sys.stdin)[0]['status']['hosts']['host'])")
+TOKEN=$(databricks postgres generate-database-credential \
+  projects/$PROJECT/branches/production/endpoints/primary \
+  --profile $PROFILE -o json | python3 -c \
+  "import json,sys; print(json.load(sys.stdin)['token'])")
+EMAIL=$(databricks current-user me --profile $PROFILE -o json | python3 -c \
+  "import json,sys; print(json.load(sys.stdin)['userName'])")
+PG="host=$HOST port=5432 dbname=postgres user=$EMAIL sslmode=require"
+
+# 4. Create the database, the graph schema, and grant read access to PUBLIC.
+PGPASSWORD="$TOKEN" psql "$PG" -c "CREATE DATABASE $DATABASE;"
+PGPASSWORD="$TOKEN" psql "host=$HOST port=5432 dbname=$DATABASE user=$EMAIL sslmode=require" <<'SQL'
+CREATE TABLE graph_nodes (
+    node_id        BIGINT NOT NULL,
+    node_type      TEXT   NOT NULL,
+    node_label     TEXT,
+    risk_score     BIGINT,
+    risk_category  TEXT,
+    properties     JSONB,
+    PRIMARY KEY (node_id, node_type)
+);
+CREATE TABLE graph_edges (
+    edge_id           BIGINT PRIMARY KEY,
+    source_node_id    BIGINT NOT NULL,
+    source_node_type  TEXT,
+    target_node_id    BIGINT NOT NULL,
+    target_node_type  TEXT,
+    edge_type         TEXT,
+    weight            DOUBLE PRECISION,
+    properties        JSONB
+);
+CREATE INDEX idx_edges_source ON graph_edges (source_node_id, source_node_type);
+CREATE INDEX idx_edges_target ON graph_edges (target_node_id, target_node_type);
+CREATE INDEX idx_edges_type   ON graph_edges (edge_type);
+CREATE INDEX idx_nodes_type   ON graph_nodes (node_type);
+
+GRANT USAGE  ON SCHEMA public            TO PUBLIC;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO PUBLIC;
+SQL
+
+# 5. Create a Postgres role for the app's service principal so it can connect
+#    via OAuth. Replace <app-sp-client-id> with the client_id from
+#    `databricks apps get the-fins-aml-app --profile $PROFILE`.
+databricks postgres create-role projects/$PROJECT/branches/production \
+  --json '{"spec":{"postgres_role":"<app-sp-client-id>","auth_method":"LAKEBASE_OAUTH_V1","identity_type":"SERVICE_PRINCIPAL"}}' \
+  --profile $PROFILE
+```
+
+You now have an empty Lakebase Postgres with the right schema and grants. Load your graph data into it — either as a one-shot copy from the UC `graph_nodes` / `graph_edges` tables (see `fins-aml-data-bundle/notebooks/` for a Python recipe), or via a UC → Lakebase synced table for ongoing sync.
+
+### Enable in the app
+
+Set these in your target in `fins-aml-app-bundle/databricks.yml`, then redeploy the app:
+
+```yaml
+use_lakebase: "true"
+lakebase_host: "ep-xxx.database.<region>.cloud.databricks.com"   # from step 3 above ($HOST)
+lakebase_database: "fins_aml_graph"
+lakebase_endpoint_path: "projects/fins-aml-graph/branches/production/endpoints/primary"
+```
+
+Verify by loading the Graph Explorer — queries should return in tens of milliseconds, and the Lakebase user_table stats (`SELECT * FROM pg_stat_user_tables WHERE relname IN ('graph_nodes','graph_edges')`) will show index-scan counts climbing.
 
 ---
 
