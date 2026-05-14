@@ -71,7 +71,7 @@ SherlockAML is a complete, partner-deployable reference solution:
 - **Optional Lakebase backend** — graph queries can be served from a managed Postgres instance for sub-10ms reads when the workload demands it.
 
 ```
-fins-aml-amer/
+.
 ├── README.md                           ← you are here
 ├── LICENSE.md  NOTICE.md  CONTRIBUTING.md  SECURITY.md
 ├── assets/                             ← logo, diagrams
