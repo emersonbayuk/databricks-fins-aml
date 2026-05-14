@@ -34,30 +34,33 @@ variables:
     default: ""
 
 targets:
-  dev:
+  # ---------------------------------------------------------------------------
+  # Configure your own target by copying the example block below. The values
+  # all come from your workspace: workspace_id is the numeric ID in the URL,
+  # warehouse_id is from `databricks warehouses list`, mas_endpoint_url is the
+  # invocations URL of the MAS endpoint created by the data bundle, and the
+  # lakebase_* values come from `databricks postgres list-projects` (only
+  # needed if you set USE_LAKEBASE=true).
+  # ---------------------------------------------------------------------------
+  example:
     mode: development
     default: true
     workspace:
-      host: https://fe-vm-industry-solutions-buildathon.cloud.databricks.com
+      host: https://<your-workspace>.cloud.databricks.com
     variables:
-      databricks_hostname: "fe-vm-industry-solutions-buildathon.cloud.databricks.com"
-      workspace_id: "237438879023004"
-      warehouse_id: "<current-warehouse-id>"
-      mas_endpoint_url: "https://fe-vm-industry-solutions-buildathon.cloud.databricks.com/serving-endpoints/mas-e3a6f805-endpoint/invocations"
-      dashboard_id: "01f0ef2a97ed176dbe998b9ec4577b1b"
+      databricks_hostname: "<your-workspace>.cloud.databricks.com"
+      workspace_id: "<numeric-workspace-id>"
+      warehouse_id: "<sql-warehouse-id>"
+      mas_endpoint_url: "https://<your-workspace>.cloud.databricks.com/serving-endpoints/<your-mas-endpoint>/invocations"
+      dashboard_id: "<lakeview-dashboard-id>"
+      # Optional: only set if USE_LAKEBASE=true
+      # use_lakebase: "true"
+      # lakebase_host: "ep-xxx.database.<region>.cloud.databricks.com"
+      # lakebase_database: "<database-name>"
+      # lakebase_endpoint_path: "projects/<id>/branches/production/endpoints/primary"
 
-  e2-demo-west:
-    workspace:
-      host: https://e2-demo-west.cloud.databricks.com
-    variables:
-      databricks_hostname: "e2-demo-west.cloud.databricks.com"
-      workspace_id: "2556758628403379"
-      warehouse_id: "75fd8278393d07eb"
-      mas_endpoint_url: "https://e2-demo-west.cloud.databricks.com/serving-endpoints/mas-be073cf6-endpoint/invocations"
-      dashboard_id: "01f1175919d61bb89245b4ff377e7e1e"
-      catalog: "financial_services"
-      schema: "fincrime"
-
+  # Maintainer's demo target. Kept in-repo as a concrete reference for the
+  # shape of a fully-configured target; replace with your own when forking.
   fevm-fins-demo:
     workspace:
       host: https://fevm-fins-demo.cloud.databricks.com
@@ -67,11 +70,9 @@ targets:
       warehouse_id: "d5080ca821238922"
       dashboard_id: "01f127b9372c1c4f850385353803dd0f"
       mas_endpoint_url: "https://fevm-fins-demo.cloud.databricks.com/serving-endpoints/mas-c499756e-endpoint/invocations"
-      # Lakebase: provisioned 2026-05-12, snapshot of graph_nodes/graph_edges
       lakebase_host: "ep-steep-block-d2vri3pw.database.us-east-1.cloud.databricks.com"
       lakebase_database: "fins_aml_graph"
       lakebase_endpoint_path: "projects/fins-aml-graph/branches/production/endpoints/primary"
-      # use_lakebase intentionally left as default "false" — flip after smoke test
 
 resources:
   apps:

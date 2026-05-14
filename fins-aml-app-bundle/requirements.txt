@@ -9,4 +9,6 @@ pydantic>=2.5.0
 python-multipart>=0.0.6
 aiofiles>=23.2.0
 reportlab>=4.0.0
+# psycopg is required only when USE_LAKEBASE=true (optional Postgres graph backend).
+# Safe to leave installed even when the flag is off — the import is gated.
 psycopg[binary]>=3.1.0

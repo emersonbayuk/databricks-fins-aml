@@ -6,7 +6,9 @@
 # MAGIC - `graph_nodes` - All entities (customers, accounts, counterparties, watchlists, alerts)
 # MAGIC - `graph_edges` - All relationships between entities
 # MAGIC
-# MAGIC **For Neo4j upload:** Export these two tables as CSVs and import directly.
+# MAGIC The app reads these tables directly (via SQL warehouse or, optionally,
+# MAGIC Lakebase Postgres) — no separate graph database required. A Neo4j
+# MAGIC reference integration is available in `/legacy/neo4j-integration/`.
 # MAGIC
 # MAGIC ## Graph Schema
 # MAGIC ```
@@ -532,55 +534,7 @@ display(spark.sql(demo_query))
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 7. Export for Neo4j
-# MAGIC
-# MAGIC Run these cells to export CSVs for Neo4j import.
-
-# COMMAND ----------
-
-# Create Neo4j-compatible node export
-# Neo4j expects a unique 'id' column
-neo4j_nodes = spark.sql(f"""
-    SELECT 
-        CONCAT(node_type, '_', node_id) as `id:ID`,
-        node_label as name,
-        node_type as `type:LABEL`,
-        risk_score,
-        risk_category,
-        properties
-    FROM {CATALOG}.{SCHEMA}.graph_nodes
-""")
-
-# Save to volume (update path as needed)
-neo4j_nodes.coalesce(1).write.mode("overwrite").option("header", "true").csv(
-    f"/Volumes/{CATALOG}/{SCHEMA}/exports/neo4j_nodes"
-)
-
-print("✅ Exported neo4j_nodes.csv")
-
-# COMMAND ----------
-
-# Create Neo4j-compatible edge export
-neo4j_edges = spark.sql(f"""
-    SELECT 
-        CONCAT(source_node_type, '_', source_node_id) as `:START_ID`,
-        CONCAT(target_node_type, '_', target_node_id) as `:END_ID`,
-        edge_type as `:TYPE`,
-        weight,
-        properties
-    FROM {CATALOG}.{SCHEMA}.graph_edges
-""")
-
-# Save to volume (update path as needed)
-neo4j_edges.coalesce(1).write.mode("overwrite").option("header", "true").csv(
-    f"/Volumes/{CATALOG}/{SCHEMA}/exports/neo4j_edges"
-)
-print("✅ Exported neo4j_edges.csv")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## 8. GraphFrames Example (Optional)
+# MAGIC ## 7. GraphFrames Example (Optional)
 # MAGIC
 # MAGIC If you want to run graph algorithms in Databricks:
 

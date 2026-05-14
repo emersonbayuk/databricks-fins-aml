@@ -99,9 +99,13 @@ if semantic_graph_router:
 else:
     logger.error("❌ Semantic graph router not registered (failed to import)")
 
-# Debug routes for development
-from backend.api import debug as debug_router
-app.include_router(debug_router.router, prefix="/api/debug", tags=["debug"])
+# Debug routes — exposed only when DEBUG_MODE=true. These endpoints
+# return schema and sample-row info that's useful for troubleshooting
+# but should not be reachable in production deployments.
+if os.getenv("DEBUG_MODE", "false").lower() == "true":
+    from backend.api import debug as debug_router
+    app.include_router(debug_router.router, prefix="/api/debug", tags=["debug"])
+    logger.info("🔧 /api/debug/* endpoints registered (DEBUG_MODE=true)")
 
 # Health check endpoint
 @app.get("/health")
