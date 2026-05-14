@@ -46,7 +46,7 @@ The pain isn't one tool. It's that AML investigation is a *data and reasoning* p
 The Databricks Data Intelligence Platform collapses the ten siloed systems into one governed lakehouse, and lets a small set of AI agents do the data-gathering, pattern analysis, and narrative drafting that the human investigator used to do by hand. The human stays in the loop for judgment and sign-off — the agents do the busywork.
 
 <p align="center">
-  <img src="assets/investigation-process-transformation.png" alt="Investigation process transformation: from 3-6 hours of manual triage, data gathering, pattern analysis, and SAR drafting to ~10-20 minutes of agent-augmented review" width="90%"/>
+  <img src="assets/investigation-process-transformation.png" alt="Investigation process transformation: from 3-6 hours of manual triage, data gathering, pattern analysis, and SAR drafting to ~10-20 minutes of agent-augmented review" width="95%"/>
 </p>
 
 | Investigation step | Before | After |
@@ -194,7 +194,7 @@ This repo is meant to be forked, cloned, or vendored. A partner taking this on:
 - **Replace the synthetic data**: keep the data bundle structure, swap the generation notebooks for your own data sources. The downstream agent prompts and the app's queries reference the table schemas, not the data content.
 - **Adjust the agent graph**: the MAS, its three KAs, two Genie Spaces, and the MCP connection are all captured as JSON under `fins-aml-data-bundle/agents/`. Edit those files (descriptions, instructions, table/document references) before running `bundle deploy` and you get a different agent graph in the target workspace.
 - **Swap the graph backend**: a Neo4j reference implementation lives in [`legacy/neo4j-integration/`](legacy/neo4j-integration/README.md) for teams who'd prefer a labeled-property graph database over Delta/Lakebase.
-- **Theme the frontend**: it's a single React file (`frontend/build/index.html`) using a Databricks-inspired dark theme. Style with vanilla CSS, no build pipeline.
+- **Restyle the frontend**: it's a single React file (`frontend/build/index.html`) with inline-styled components — no build pipeline, no bundler. Swap colors and typography directly.
 
 ---
 
@@ -206,9 +206,8 @@ The agents are stateless; everything reproducible from the bundle.
 
 ---
 
-## Demo, support, contributing
+## Support, contributing
 
-- **Live demo workspace**: `https://the-fins-aml-app-7474649573853836.aws.databricksapps.com` *(Databricks-internal)*
 - **Issues / bugs**: open a GitHub issue on this repo
 - **Contributing**: see [CONTRIBUTING.md](CONTRIBUTING.md). Bricksters only per FE policy
 - **Security disclosures**: see [SECURITY.md](SECURITY.md)
