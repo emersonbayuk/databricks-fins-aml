@@ -59,20 +59,11 @@ targets:
       # lakebase_database: "<database-name>"
       # lakebase_endpoint_path: "projects/<id>/branches/production/endpoints/primary"
 
-  # Maintainer's demo target. Kept in-repo as a concrete reference for the
-  # shape of a fully-configured target; replace with your own when forking.
-  fevm-fins-demo:
-    workspace:
-      host: https://fevm-fins-demo.cloud.databricks.com
-    variables:
-      databricks_hostname: "fevm-fins-demo.cloud.databricks.com"
-      workspace_id: "7474649573853836"
-      warehouse_id: "d5080ca821238922"
-      dashboard_id: "01f127b9372c1c4f850385353803dd0f"
-      mas_endpoint_url: "https://fevm-fins-demo.cloud.databricks.com/serving-endpoints/mas-c499756e-endpoint/invocations"
-      lakebase_host: "ep-steep-block-d2vri3pw.database.us-east-1.cloud.databricks.com"
-      lakebase_database: "fins_aml_graph"
-      lakebase_endpoint_path: "projects/fins-aml-graph/branches/production/endpoints/primary"
+# Additional, environment-specific targets can live in
+# `databricks.local.yml` (gitignored). deploy.sh merges variable values
+# from that file when resolving app.yaml. Use this pattern to keep
+# workspace IDs, endpoint hosts, and other deployment-specific values
+# out of the public repo.
 
 resources:
   apps:

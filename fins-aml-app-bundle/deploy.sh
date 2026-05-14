@@ -62,12 +62,19 @@ echo "  Remote path: $REMOTE_PATH"
 # Extract variable values from databricks.yml for the target
 # Uses python for reliable YAML parsing
 RESOLVED_YAML=$(python3 - "$TARGET" <<'PYSCRIPT'
-import sys, yaml, re
+import os, sys, yaml, re
 
 target = sys.argv[1]
 
 with open("databricks.yml", "r") as f:
     config = yaml.safe_load(f)
+
+# Optionally merge a local-only override file (gitignored). Lets the
+# maintainer keep workspace-specific values out of the public repo.
+local_config = {}
+if os.path.exists("databricks.local.yml"):
+    with open("databricks.local.yml", "r") as f:
+        local_config = yaml.safe_load(f) or {}
 
 # Get variable defaults
 defaults = {}
@@ -75,13 +82,12 @@ for var_name, var_def in config.get("variables", {}).items():
     if isinstance(var_def, dict) and "default" in var_def:
         defaults[var_name] = var_def["default"]
 
-# Get target-specific variable overrides
-target_vars = {}
-target_config = config.get("targets", {}).get(target, {})
-target_vars = target_config.get("variables", {})
+# Get target-specific variable overrides — public file first, then local
+public_target_vars = config.get("targets", {}).get(target, {}).get("variables", {}) or {}
+local_target_vars = local_config.get("targets", {}).get(target, {}).get("variables", {}) or {}
 
-# Merge: target values override defaults
-resolved = {**defaults, **target_vars}
+# Merge: defaults < public target < local override
+resolved = {**defaults, **public_target_vars, **local_target_vars}
 
 # Read app.yaml and resolve ${var.xxx} references
 with open("app.yaml", "r") as f:

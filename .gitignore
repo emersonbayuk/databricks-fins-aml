@@ -52,3 +52,8 @@ _probe_*/
 
 # Personal AI session notes (not for public repo)
 CLAUDE.md
+
+# Local-only bundle overrides (workspace IDs, endpoints, dashboards).
+# Pattern: a sibling *.local.yml next to any databricks.yml in the tree.
+databricks.local.yml
+**/databricks.local.yml

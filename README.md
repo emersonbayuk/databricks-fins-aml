@@ -178,7 +178,7 @@ If you set up the You.com MCP, the first time anyone uses one of its tools in th
 Read the two values produced by step 2 and update your target in `fins-aml-app-bundle/databricks.yml`.
 
 ```bash
-# The MAS endpoint name (e.g. mas-c499756e-endpoint):
+# The MAS endpoint name (it'll look like mas-xxxxxxxx-endpoint):
 databricks api get "/api/2.0/tiles?tile_type=MAS" --profile <your-profile> \
   | python3 -c "import json,sys; \
     [print(t['serving_endpoint_name']) for t in json.load(sys.stdin)['tiles'] \
