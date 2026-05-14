@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 VS_ENDPOINT_NAME = "fins-aml-vs-endpoint"
 VS_INDEX_NAME = f"{config.CATALOG}.{config.SCHEMA}.graph_node_embeddings_index"
 
-# AI Gateway model for summaries
-AI_GATEWAY_BASE_URL = "https://7474649573853836.ai-gateway.cloud.databricks.com/mlflow/v1"
+# AI Gateway model for summaries (workspace ID injected by Databricks Apps runtime)
+AI_GATEWAY_BASE_URL = f"https://{config.DATABRICKS_WORKSPACE_ID}.ai-gateway.cloud.databricks.com/mlflow/v1"
 AI_GATEWAY_MODEL = "fins-aml-claude-sonnet-46"
 
 
