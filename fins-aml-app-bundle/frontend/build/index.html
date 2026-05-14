@@ -16,10 +16,10 @@
        import { DatabricksDashboard } from "@databricks/aibi-client";
 
        const dashboard = new DatabricksDashboard({
-         instanceUrl: "https://fe-vm-industry-solutions-buildathon.cloud.databricks.com",
-         workspaceId: "237438879023004",
-         dashboardId: "YOUR_DASHBOARD_ID",
-         token: "YOUR_SERVICE_PRINCIPAL_TOKEN",
+         instanceUrl: "https://<your-workspace>.cloud.databricks.com",
+         workspaceId: "<your-workspace-id>",
+         dashboardId: "<your-dashboard-id>",
+         token: "<your-service-principal-token>",
          container: document.getElementById("dashboard-container"),
          colorScheme: 'dark',  // Forces dark mode
          // or: colorScheme: 'light dark', // Follows user preference

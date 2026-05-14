@@ -7,8 +7,8 @@ graph in any target workspace.
 
 Usage:
     python export_agents.py \\
-        --profile fevm-fins-demo \\
-        --mas-tile-id c499756e-7d86-47bb-ab19-59974df588bf
+        --profile <your-cli-profile> \\
+        --mas-tile-id <mas-tile-id-from-source-workspace>
 
 What's captured:
   - mas.json                          MAS supervisor + agents array
