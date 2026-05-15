@@ -37,7 +37,13 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.errors import DatabricksError
 
 
-AGENTS_DIR = Path(__file__).parent / "agents"
+# When run as a Databricks Jobs spark_python_task, the script is exec'd
+# without `__file__` being set. Fall back to cwd in that case — the
+# bundle uploader puts the agents/ folder next to this script.
+try:
+    AGENTS_DIR = Path(__file__).parent / "agents"
+except NameError:
+    AGENTS_DIR = Path.cwd() / "agents"
 SOURCE_CATALOG = "fins_aml"
 SOURCE_SCHEMA = "data_generation"
 KA_INDEX_TIMEOUT_SEC = 30 * 60
